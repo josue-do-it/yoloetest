@@ -249,72 +249,42 @@ def ensure_bool_mask(mask: np.ndarray, H: int, W: int) -> np.ndarray:
 # ═══════════════════════════════════════════════════════════════════════════════
 # MODEL LOADERS
 # ═══════════════════════════════════════════════════════════════════════════════
-# Root cause of "Arguments received: ['yolo']" error:
-#   ultralytics registers a 'yolo' entry-point; when the model weight file is not
-#   found locally, some ultralytics versions fall back to a CLI dispatch instead of
-#   the Python hub download, which prints the help text and returns nothing.
+# Fix for "Arguments received: ['yolo']":
+#   The error happens because attempt_download_asset() and some YOLOE() paths
+#   internally call ultralytics CLI machinery that reads sys.argv.
+#   Under Streamlit sys.argv[0] is the streamlit runner script, which ultralytics
+#   misinterprets as a yolo CLI call → prints help and exits.
 #
-# Fix strategy:
-#   1. Use ultralytics.utils.downloads.attempt_download_asset() to ensure the .pt
-#      file is present on disk BEFORE constructing YOLOE().
-#   2. Pass the resolved absolute path to YOLOE(), so it never does string-based
-#      CLI dispatch.
-#   3. Set task="segment" explicitly so YOLOE doesn't try to infer it from argv.
+# Solution: let YOLOE() handle its own download (it uses safe_download internally,
+#   not the CLI), but suppress the argv inspection by patching sys.argv temporarily
+#   and passing verbose=False.  No _resolve_weights / attempt_download_asset needed.
 
-def _resolve_weights(name: str) -> str:
-    """
-    Return the absolute path to a YOLOE weight file.
-    Downloads from Ultralytics hub if not already cached.
-    """
-    import torch
-    from pathlib import Path as _P
+def _load_yoloe(name: str):
+    """Load YOLOE model safely, patching sys.argv so ultralytics never sees Streamlit args."""
+    import sys, torch
+    from ultralytics import YOLOE
 
-    # If the caller passed an absolute/relative path that already exists, use it.
-    p = _P(name)
-    if p.exists():
-        return str(p.resolve())
-
-    # Check Ultralytics default cache  (~/.config/Ultralytics  or  ~/ultralytics)
+    # Temporarily replace sys.argv with a clean list so ultralytics CLI guard
+    # does not trigger when it inspects argv during model initialisation.
+    _orig_argv = sys.argv[:]
+    sys.argv = ["yoloe_app"]
     try:
-        from ultralytics.utils import WEIGHTS_DIR  # ultralytics ≥ 8.1
-        cached = _P(WEIGHTS_DIR) / name
-    except ImportError:
-        cached = _P.home() / ".config" / "Ultralytics" / name
+        m = YOLOE(name, verbose=False)
+    finally:
+        sys.argv = _orig_argv   # always restore
 
-    if cached.exists():
-        return str(cached)
-
-    # Download via Ultralytics hub (same as what YOLOE() does internally, but
-    # explicit — avoids the CLI fallback path).
-    try:
-        from ultralytics.utils.downloads import attempt_download_asset
-        downloaded = attempt_download_asset(name)  # returns local path string
-        return str(_P(downloaded).resolve())
-    except Exception as e:
-        # Last resort: let YOLOE() try on its own with the bare name.
-        print(f"[YOLOE app] weight pre-download failed ({e}), passing name directly.",
-              file=sys.stderr)
-        return name
+    m.to("cuda" if torch.cuda.is_available() else "cpu")
+    return m
 
 
 @st.cache_resource(show_spinner="Loading YOLOE model…")
 def load_model(name: str):
-    import torch
-    from ultralytics import YOLOE
-    weights = _resolve_weights(name)
-    m = YOLOE(weights, task="segment")
-    m.to("cuda" if torch.cuda.is_available() else "cpu")
-    return m
+    return _load_yoloe(name)
 
 
 @st.cache_resource(show_spinner="Loading YOLOE-PF model…")
 def load_model_pf(name: str):
-    import torch
-    from ultralytics import YOLOE
-    weights = _resolve_weights(name)
-    m = YOLOE(weights, task="segment")
-    m.to("cuda" if torch.cuda.is_available() else "cpu")
-    return m
+    return _load_yoloe(name)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -416,8 +386,9 @@ def run_text_prompt(model, scene_path: str, scene_rgb: np.ndarray,
             st.warning(f"helpers.yoloe_text_prompt failed ({e}), using fallback.")
             traceback.print_exc(file=sys.stderr)
 
-    # Raw fallback
-    res = model.predict(scene_path, texts=text_prompts, conf=conf)
+    # Raw fallback — correct API: set_classes() then predict() (no texts= kwarg)
+    model.set_classes(text_prompts)
+    res = model.predict(source=scene_path, conf=conf, verbose=False)
     return parse_best_result(res, H, W)
 
 
@@ -439,12 +410,18 @@ def run_visual_prompt(model, scene_path: str, scene_rgb: np.ndarray,
 
     # Raw fallback
     from ultralytics.models.yolo.yoloe import YOLOEVPSegPredictor
+    bbox_arr = np.array(anchor_bbox, dtype=np.float32)
+    if bbox_arr.ndim == 1:
+        bbox_arr = bbox_arr[np.newaxis, :]
+    bbox_list = bbox_arr.tolist()
+    cls_list  = list(range(len(bbox_list)))
     res = model.predict(
-        scene_path,
+        source=scene_path,
         refer_image=anchor_path,
-        visual_prompts={"cls": [0], "bboxes": anchor_bbox},
+        visual_prompts={"bboxes": bbox_list, "cls": cls_list},
         predictor=YOLOEVPSegPredictor,
         conf=conf,
+        verbose=False,
     )
     return parse_best_result(res, H, W)
 
@@ -635,11 +612,20 @@ with st.sidebar:
         from pathlib import Path as _P
         if _P(wname).exists():
             return True
+        # Check ultralytics settings weights_dir
         try:
-            from ultralytics.utils import WEIGHTS_DIR
-            return (_P(WEIGHTS_DIR) / wname).exists()
+            from ultralytics.utils import SETTINGS
+            wd = _P(SETTINGS.get("weights_dir", ""))
+            if wd.exists() and (wd / wname).exists():
+                return True
         except Exception:
-            return (_P.home() / ".config" / "Ultralytics" / wname).exists()
+            pass
+        # Fallback cache locations
+        for d in [_P.home() / ".config" / "Ultralytics",
+                  _P.home() / "ultralytics" / "assets"]:
+            if (d / wname).exists():
+                return True
+        return False
 
     w_seg = _weights_exist(model_choice)
     w_pf  = _weights_exist(pf_choice)
