@@ -249,20 +249,70 @@ def ensure_bool_mask(mask: np.ndarray, H: int, W: int) -> np.ndarray:
 # ═══════════════════════════════════════════════════════════════════════════════
 # MODEL LOADERS
 # ═══════════════════════════════════════════════════════════════════════════════
+# Root cause of "Arguments received: ['yolo']" error:
+#   ultralytics registers a 'yolo' entry-point; when the model weight file is not
+#   found locally, some ultralytics versions fall back to a CLI dispatch instead of
+#   the Python hub download, which prints the help text and returns nothing.
+#
+# Fix strategy:
+#   1. Use ultralytics.utils.downloads.attempt_download_asset() to ensure the .pt
+#      file is present on disk BEFORE constructing YOLOE().
+#   2. Pass the resolved absolute path to YOLOE(), so it never does string-based
+#      CLI dispatch.
+#   3. Set task="segment" explicitly so YOLOE doesn't try to infer it from argv.
+
+def _resolve_weights(name: str) -> str:
+    """
+    Return the absolute path to a YOLOE weight file.
+    Downloads from Ultralytics hub if not already cached.
+    """
+    import torch
+    from pathlib import Path as _P
+
+    # If the caller passed an absolute/relative path that already exists, use it.
+    p = _P(name)
+    if p.exists():
+        return str(p.resolve())
+
+    # Check Ultralytics default cache  (~/.config/Ultralytics  or  ~/ultralytics)
+    try:
+        from ultralytics.utils import WEIGHTS_DIR  # ultralytics ≥ 8.1
+        cached = _P(WEIGHTS_DIR) / name
+    except ImportError:
+        cached = _P.home() / ".config" / "Ultralytics" / name
+
+    if cached.exists():
+        return str(cached)
+
+    # Download via Ultralytics hub (same as what YOLOE() does internally, but
+    # explicit — avoids the CLI fallback path).
+    try:
+        from ultralytics.utils.downloads import attempt_download_asset
+        downloaded = attempt_download_asset(name)  # returns local path string
+        return str(_P(downloaded).resolve())
+    except Exception as e:
+        # Last resort: let YOLOE() try on its own with the bare name.
+        print(f"[YOLOE app] weight pre-download failed ({e}), passing name directly.",
+              file=sys.stderr)
+        return name
+
 
 @st.cache_resource(show_spinner="Loading YOLOE model…")
 def load_model(name: str):
-    from ultralytics import YOLOE
     import torch
-    m = YOLOE(name)
+    from ultralytics import YOLOE
+    weights = _resolve_weights(name)
+    m = YOLOE(weights, task="segment")
     m.to("cuda" if torch.cuda.is_available() else "cpu")
     return m
 
+
 @st.cache_resource(show_spinner="Loading YOLOE-PF model…")
 def load_model_pf(name: str):
-    from ultralytics import YOLOE
     import torch
-    m = YOLOE(name)
+    from ultralytics import YOLOE
+    weights = _resolve_weights(name)
+    m = YOLOE(weights, task="segment")
     m.to("cuda" if torch.cuda.is_available() else "cpu")
     return m
 
@@ -576,12 +626,26 @@ with st.sidebar:
     crop_padding = st.slider("Padding (px)", 0, 80, 12)
 
     st.markdown("---")
-    st.caption(f"App dir: `{APP_DIR}`")
+    st.markdown('<div class="section-label">Status</div>', unsafe_allow_html=True)
+
     helpers_ok = (APP_DIR / "helpers.py").exists()
-    if helpers_ok:
-        st.caption("✅ helpers.py found")
-    else:
-        st.caption("⚠️ helpers.py not found — using ultralytics fallback")
+    st.caption(f"{'✅' if helpers_ok else '⚠️'} helpers.py {'found' if helpers_ok else 'not found — fallback active'}")
+
+    def _weights_exist(wname):
+        from pathlib import Path as _P
+        if _P(wname).exists():
+            return True
+        try:
+            from ultralytics.utils import WEIGHTS_DIR
+            return (_P(WEIGHTS_DIR) / wname).exists()
+        except Exception:
+            return (_P.home() / ".config" / "Ultralytics" / wname).exists()
+
+    w_seg = _weights_exist(model_choice)
+    w_pf  = _weights_exist(pf_choice)
+    st.caption(f"{'✅' if w_seg else '🔽'} {model_choice} {'(cached)' if w_seg else '(will download)'}")
+    st.caption(f"{'✅' if w_pf  else '🔽'} {pf_choice} {'(cached)' if w_pf else '(will download)'}")
+    st.caption(f"📁 {APP_DIR}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
