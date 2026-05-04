@@ -426,7 +426,7 @@ with st.sidebar:
     st.markdown('<div style="font-size:.67rem;color:#4a5070;margin:2px 0 18px;font-family:\'IBM Plex Mono\',monospace;letter-spacing:.1em;">BLOCK 1 · MASK &amp; CROP</div>',unsafe_allow_html=True)
 
     st.markdown('<div class="section-label">Prompt mode</div>',unsafe_allow_html=True)
-    mode = st.radio("", ["📝  Text", "🖼️  Visual", "🔮  Free"], label_visibility="collapsed")
+    mode = st.radio("", [" Text Prompt", " Visual Prompt", " Free-Prompt"], label_visibility="collapsed")
 
     st.markdown("---")
     st.markdown('<div class="section-label">Models</div>',unsafe_allow_html=True)
