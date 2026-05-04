@@ -615,7 +615,7 @@ elif " Visual Prompt" in mode:
             # Draw filled rect with alpha
             overlay = preview.copy()
             _cv2.rectangle(overlay, (_bx1,_by1), (_bx2,_by2), (91,156,246), -1)
-            preview = _cv2.addWeighted(overlay, 0.25, preview, 0.75, 0)
+            preview = _cv2.addWeighted(overlay, 0.05, preview, 0.75, 0)
             # Draw border + corner handles
             _cv2.rectangle(preview, (_bx1,_by1), (_bx2,_by2), (91,156,246), 2)
             for cx,cy in [(_bx1,_by1),(_bx2,_by1),(_bx1,_by2),(_bx2,_by2)]:
