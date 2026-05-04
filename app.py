@@ -45,7 +45,7 @@ if str(APP_DIR) not in sys.path:
 # ---------------------------------------------------------------------------
 st.set_page_config(
     page_title="YOLOE Studio",
-    page_icon=None,  # set to a .png path if you have a custom favicon
+    page_icon="✂️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -681,100 +681,137 @@ def _theme_css_light() -> str:
 }
 
 /* ── App shell ── */
-.stApp { background-color: #f4f6fb !important; color: #0d1224 !important; }
-.main .block-container { color: #0d1224 !important; }
+.stApp                              { background-color: #f4f6fb !important; color: #0d1224 !important; }
+.main .block-container              { color: #0d1224 !important; }
+.stMarkdown, .stMarkdown p,
+.stMarkdown span, .stMarkdown div   { color: #0d1224 !important; }
 
 /* ── Sidebar ── */
-section[data-testid="stSidebar"] {
-  background-color: #ffffff !important;
-  border-right-color: #dce1f0 !important;
-}
+section[data-testid="stSidebar"]    { background-color: #ffffff !important; border-right-color: #dce1f0 !important; }
+section[data-testid="stSidebar"] *  { color: #0d1224; }
 
-/* ── All text / labels ── */
+/* ── All labels ── */
 label,
-div[data-testid="stSidebar"] label,
-.stMarkdown p, .stMarkdown span,
-p, span, div { color: #0d1224; }
-
-/* Widget labels (sidebar + main) */
-.stRadio      > label,
-.stSelectbox  > label,
-.stSlider     > label,
-.stCheckbox   > label,
-.stToggle     > label,
-.stTextArea   > label,
-.stTextInput  > label,
-.stNumberInput > label,
-.stRadio     [data-testid="stWidgetLabel"],
-.stSelectbox [data-testid="stWidgetLabel"],
-.stSlider    [data-testid="stWidgetLabel"],
-.stCheckbox  [data-testid="stWidgetLabel"],
-.stToggle    [data-testid="stWidgetLabel"] {
-  color: #4b5678 !important;
-}
+div[data-testid="stSidebar"] label  { color: #4b5678 !important; }
+[data-testid="stWidgetLabel"],
+[data-testid="stWidgetLabel"] p     { color: #4b5678 !important; }
 
 /* ── Radio buttons ── */
-.stRadio > div > label,
-.stRadio [data-testid="stMarkdownContainer"] p {
-  color: #0d1224 !important;
-}
-.stRadio [data-baseweb="radio"] span { background-color: #ffffff !important; }
+.stRadio > div > label              { color: #0d1224 !important; }
+.stRadio [data-testid="stMarkdownContainer"] p { color: #0d1224 !important; }
 
-/* ── Selectbox / dropdown ── */
-.stSelectbox [data-baseweb="select"] > div,
-.stSelectbox [data-baseweb="select"] {
+/* ── Selectbox ── */
+.stSelectbox  > label               { color: #4b5678 !important; }
+.stSelectbox [data-baseweb="select"] > div {
   background-color: #ffffff !important;
   border-color: #c5cde4 !important;
-  color: #0d1224 !important;
 }
 .stSelectbox [data-baseweb="select"] span,
-.stSelectbox [data-baseweb="select"] div { color: #0d1224 !important; }
-/* Dropdown list items */
-li[role="option"], li[role="option"] * { color: #0d1224 !important; background: #ffffff !important; }
-li[role="option"]:hover { background: #eef1f8 !important; }
+.stSelectbox [data-baseweb="select"] div,
+.stSelectbox [data-baseweb="select"] p { color: #0d1224 !important; }
+/* Dropdown list */
+li[role="option"]                   { background-color: #ffffff !important; color: #0d1224 !important; }
+li[role="option"]:hover             { background-color: #eef1f8 !important; }
+li[role="option"] *                 { color: #0d1224 !important; }
+/* Dropdown popover */
+[data-baseweb="popover"] [data-baseweb="menu"] { background-color: #ffffff !important; }
 
 /* ── Slider ── */
-.stSlider [data-baseweb="slider"] { background-color: transparent !important; }
+.stSlider > label                   { color: #4b5678 !important; }
 .stSlider [data-testid="stTickBarMin"],
-.stSlider [data-testid="stTickBarMax"],
-.stSlider [data-baseweb="slider"] div { color: #0d1224 !important; }
-/* Slider value label */
-.stSlider [data-testid="stThumbValue"],
-.stSlider p { color: #0d1224 !important; }
+.stSlider [data-testid="stTickBarMax"] { color: #8c96b5 !important; }
+.stSlider p                         { color: #0d1224 !important; }
+.stSlider [data-testid="stThumbValue"] { color: #0d1224 !important; }
 
 /* ── Checkbox ── */
+.stCheckbox > label                 { color: #4b5678 !important; }
 .stCheckbox [data-testid="stMarkdownContainer"] p { color: #0d1224 !important; }
 .stCheckbox [data-baseweb="checkbox"] span { border-color: #c5cde4 !important; }
 
 /* ── Toggle ── */
+.stToggle   > label                 { color: #4b5678 !important; }
 .stToggle   [data-testid="stMarkdownContainer"] p { color: #0d1224 !important; }
 
-/* ── Inputs ── */
-.stTextArea  textarea  { background: #ffffff !important; border-color: #c5cde4 !important; color: #0d1224 !important; }
-.stTextInput input     { background: #ffffff !important; border-color: #c5cde4 !important; color: #0d1224 !important; }
-.stNumberInput input   { background: #ffffff !important; border-color: #c5cde4 !important; color: #0d1224 !important; }
+/* ── Textarea ── */
+.stTextArea textarea {
+  background-color: #ffffff !important;
+  border-color: #c5cde4 !important;
+  color: #0d1224 !important;
+}
+.stTextArea textarea::placeholder   { color: #8c96b5 !important; opacity: 1 !important; }
 
-/* ── File uploader ── */
-div[data-testid="stFileUploader"] { background: #eef1f8 !important; border-color: #c5cde4 !important; }
+/* ── Text / Number input ── */
+.stTextInput input,
+.stNumberInput input {
+  background-color: #ffffff !important;
+  border-color: #c5cde4 !important;
+  color: #0d1224 !important;
+}
+.stTextInput  input::placeholder,
+.stNumberInput input::placeholder   { color: #8c96b5 !important; opacity: 1 !important; }
+
+/* ── File uploader ──────────────────────────────────────────────────────────
+   The inner button and drag zone have hardcoded dark bg in Streamlit's
+   own CSS. We override every layer explicitly.                             */
+div[data-testid="stFileUploader"] {
+  background-color: #eef1f8 !important;
+  border-color: #c5cde4 !important;
+}
+div[data-testid="stFileUploader"] section {
+  background-color: #eef1f8 !important;
+}
+div[data-testid="stFileUploader"] button {
+  background-color: #ffffff !important;
+  color: #0d1224 !important;
+  border-color: #c5cde4 !important;
+}
 div[data-testid="stFileUploader"] span,
-div[data-testid="stFileUploader"] p  { color: #4b5678 !important; }
+div[data-testid="stFileUploader"] p,
+div[data-testid="stFileUploader"] small,
+div[data-testid="stFileUploader"] div { color: #4b5678 !important; }
+div[data-testid="stFileUploaderDropzoneInput"] + div { color: #4b5678 !important; }
+/* The inner upload button specifically */
+[data-testid="stFileUploaderDropzone"] {
+  background-color: #eef1f8 !important;
+}
+[data-testid="baseButton-secondary"] {
+  background-color: #ffffff !important;
+  color: #0d1224 !important;
+  border-color: #c5cde4 !important;
+}
 
-/* ── Caption / small text ── */
-.stCaption, .stCaption p, small { color: #8c96b5 !important; }
+/* ── Caption ── */
+.stCaption, .stCaption p, small     { color: #8c96b5 !important; }
 
 /* ── Dividers ── */
-hr { border-color: #dce1f0 !important; }
+hr                                  { border-color: #dce1f0 !important; }
+
+/* ── Info / warning / error ── */
+div[data-testid="stAlert"]          { background-color: #f4f6fb !important; }
+div[data-testid="stAlert"] p        { color: #0d1224 !important; }
 
 /* ── Tabs ── */
-.stTabs [data-baseweb="tab"]         { color: #4b5678 !important; background: #eef1f8 !important; }
-.stTabs [aria-selected="true"]       { color: #3d5cf5 !important; background: #ffffff !important; }
-.stTabs [data-baseweb="tab-border"]  { background: #dce1f0 !important; }
+.stTabs [data-baseweb="tab-list"]   { border-bottom-color: #dce1f0 !important; }
+.stTabs [data-baseweb="tab"]        { color: #4b5678 !important; background: #eef1f8 !important; }
+.stTabs [aria-selected="true"]      { color: #3d5cf5 !important; background: #ffffff !important; }
 
-/* ── Info / warning / error boxes ── */
-div[data-testid="stAlert"]           { background: #f4f6fb !important; color: #0d1224 !important; }
-
-/* ── Spinner text ── */
-.stSpinner > div > div { border-top-color: #3d5cf5 !important; }
+/* ── Metric cards & custom HTML ── */
+.metric-card                        { background-color: #ffffff !important; border-color: #dce1f0 !important; }
+.metric-card__value                 { color: #3d5cf5 !important; }
+.metric-card__label                 { color: #8c96b5 !important; }
+.detection-item                     { background-color: #ffffff !important; border-color: #dce1f0 !important; }
+.detection-item__label              { color: #0d1224 !important; }
+.detection-item__conf               { color: #3d5cf5 !important; }
+.detection-item__px                 { color: #8c96b5 !important; }
+.panel-header                       { background-color: #eef1f8 !important; color: #8c96b5 !important; }
+.pipeline                           { background-color: #ffffff !important; border-color: #dce1f0 !important; }
+.pipeline-step--pending             { background-color: #eef1f8 !important; color: #8c96b5 !important; border-color: #dce1f0 !important; }
+.wordmark-name                      { color: #0d1224 !important; }
+.sidebar-section                    { color: #8c96b5 !important; border-color: #dce1f0 !important; }
+.page-header-title                  { color: #0d1224 !important; }
+.page-header-desc                   { color: #4b5678 !important; }
+.field-label                        { color: #8c96b5 !important; border-color: #dce1f0 !important; }
+.export-header                      { color: #8c96b5 !important; }
 </style>"""
 
 
