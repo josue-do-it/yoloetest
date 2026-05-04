@@ -45,7 +45,7 @@ if str(APP_DIR) not in sys.path:
 # ---------------------------------------------------------------------------
 st.set_page_config(
     page_title="YOLOE Studio",
-    page_icon="assets/favicon.png" if (APP_DIR / "assets/favicon.png").exists() else None,
+    page_icon=None,  # set to a .png path if you have a custom favicon
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -646,8 +646,9 @@ hr                    { border-color: #1a2040 !important; }
 
 
 def _theme_css_light() -> str:
-    """Returns the CSS that switches the app to light mode (re-applies :root)."""
+    """Returns CSS that activates light mode — covers every Streamlit widget."""
     return """<style>
+/* ── Token reset ── */
 .stApp, .stApp * {
   --c-bg:          #f4f6fb;
   --c-surface:     #ffffff;
@@ -678,14 +679,102 @@ def _theme_css_light() -> str:
   --shadow-sm: 0 1px 2px rgba(13,18,36,.06), 0 1px 4px rgba(13,18,36,.04);
   --shadow-md: 0 4px 12px rgba(13,18,36,.08), 0 2px 6px rgba(13,18,36,.05);
 }
-.stApp                { background-color: #f4f6fb !important; color: #0d1224 !important; }
-section[data-testid="stSidebar"] { background-color: #ffffff !important; border-right-color: #dce1f0 !important; }
+
+/* ── App shell ── */
+.stApp { background-color: #f4f6fb !important; color: #0d1224 !important; }
+.main .block-container { color: #0d1224 !important; }
+
+/* ── Sidebar ── */
+section[data-testid="stSidebar"] {
+  background-color: #ffffff !important;
+  border-right-color: #dce1f0 !important;
+}
+
+/* ── All text / labels ── */
+label,
+div[data-testid="stSidebar"] label,
+.stMarkdown p, .stMarkdown span,
+p, span, div { color: #0d1224; }
+
+/* Widget labels (sidebar + main) */
+.stRadio      > label,
+.stSelectbox  > label,
+.stSlider     > label,
+.stCheckbox   > label,
+.stToggle     > label,
+.stTextArea   > label,
+.stTextInput  > label,
+.stNumberInput > label,
+.stRadio     [data-testid="stWidgetLabel"],
+.stSelectbox [data-testid="stWidgetLabel"],
+.stSlider    [data-testid="stWidgetLabel"],
+.stCheckbox  [data-testid="stWidgetLabel"],
+.stToggle    [data-testid="stWidgetLabel"] {
+  color: #4b5678 !important;
+}
+
+/* ── Radio buttons ── */
+.stRadio > div > label,
+.stRadio [data-testid="stMarkdownContainer"] p {
+  color: #0d1224 !important;
+}
+.stRadio [data-baseweb="radio"] span { background-color: #ffffff !important; }
+
+/* ── Selectbox / dropdown ── */
+.stSelectbox [data-baseweb="select"] > div,
+.stSelectbox [data-baseweb="select"] {
+  background-color: #ffffff !important;
+  border-color: #c5cde4 !important;
+  color: #0d1224 !important;
+}
+.stSelectbox [data-baseweb="select"] span,
+.stSelectbox [data-baseweb="select"] div { color: #0d1224 !important; }
+/* Dropdown list items */
+li[role="option"], li[role="option"] * { color: #0d1224 !important; background: #ffffff !important; }
+li[role="option"]:hover { background: #eef1f8 !important; }
+
+/* ── Slider ── */
+.stSlider [data-baseweb="slider"] { background-color: transparent !important; }
+.stSlider [data-testid="stTickBarMin"],
+.stSlider [data-testid="stTickBarMax"],
+.stSlider [data-baseweb="slider"] div { color: #0d1224 !important; }
+/* Slider value label */
+.stSlider [data-testid="stThumbValue"],
+.stSlider p { color: #0d1224 !important; }
+
+/* ── Checkbox ── */
+.stCheckbox [data-testid="stMarkdownContainer"] p { color: #0d1224 !important; }
+.stCheckbox [data-baseweb="checkbox"] span { border-color: #c5cde4 !important; }
+
+/* ── Toggle ── */
+.stToggle   [data-testid="stMarkdownContainer"] p { color: #0d1224 !important; }
+
+/* ── Inputs ── */
+.stTextArea  textarea  { background: #ffffff !important; border-color: #c5cde4 !important; color: #0d1224 !important; }
+.stTextInput input     { background: #ffffff !important; border-color: #c5cde4 !important; color: #0d1224 !important; }
+.stNumberInput input   { background: #ffffff !important; border-color: #c5cde4 !important; color: #0d1224 !important; }
+
+/* ── File uploader ── */
 div[data-testid="stFileUploader"] { background: #eef1f8 !important; border-color: #c5cde4 !important; }
-.stTextArea textarea  { background: #ffffff !important; border-color: #c5cde4 !important; color: #0d1224 !important; }
-label, div[data-testid="stSidebar"] label { color: #4b5678 !important; }
-hr                    { border-color: #dce1f0 !important; }
-.stRadio > div > label, .stSelectbox label,
-.stSlider label, .stCheckbox label, .stToggle label { color: #4b5678 !important; }
+div[data-testid="stFileUploader"] span,
+div[data-testid="stFileUploader"] p  { color: #4b5678 !important; }
+
+/* ── Caption / small text ── */
+.stCaption, .stCaption p, small { color: #8c96b5 !important; }
+
+/* ── Dividers ── */
+hr { border-color: #dce1f0 !important; }
+
+/* ── Tabs ── */
+.stTabs [data-baseweb="tab"]         { color: #4b5678 !important; background: #eef1f8 !important; }
+.stTabs [aria-selected="true"]       { color: #3d5cf5 !important; background: #ffffff !important; }
+.stTabs [data-baseweb="tab-border"]  { background: #dce1f0 !important; }
+
+/* ── Info / warning / error boxes ── */
+div[data-testid="stAlert"]           { background: #f4f6fb !important; color: #0d1224 !important; }
+
+/* ── Spinner text ── */
+.stSpinner > div > div { border-top-color: #3d5cf5 !important; }
 </style>"""
 
 
@@ -1216,7 +1305,7 @@ with st.sidebar:
 
     # Detection settings
     st.markdown(html_sidebar_section("Detection"), unsafe_allow_html=True)
-    conf_thresh  = st.slider("Confidence threshold", 0.05, 0.95, 0.25, 0.05)
+    conf_thresh  = st.slider("Confidence threshold", 0.05, 0.95, 0.05, 0.05)
 
     st.markdown(html_sidebar_section("Mask refinement"), unsafe_allow_html=True)
     use_largest  = st.checkbox("Keep largest component only", value=True)
