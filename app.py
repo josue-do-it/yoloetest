@@ -579,139 +579,195 @@ elif "🖼️" in mode:
             anchor_pil = Image.open(anchor_up).convert("RGB")
             orig_W, orig_H = anchor_pil.size
 
-            # ── Native HTML5 canvas bbox drawer ──────────────────────
-            # No third-party dependency — uses st.components.v1.html
-            # + st.session_state to pass coords back to Python.
-            #
-            # How it works:
-            #   1. Image is base64-encoded and drawn on an HTML <canvas>
-            #   2. User drags to draw a rectangle
-            #   3. JS calls window.parent.postMessage with the coords
-            #   4. A small Streamlit component iframe receives the message
-            #      and stores coords in session_state via st.query_params trick
-            #   5. We read coords from 4 number_input widgets (auto-filled
-            #      by JS via a hidden form submit) — 100% reliable.
-            #
-            # Simpler approach that always works on Streamlit Cloud:
-            # Show the image, let user read coords visually, enter manually.
-            # But we also embed an interactive HTML canvas that writes to
-            # the number inputs automatically when the user draws.
-
             import base64
-            # Encode anchor image as base64 data URL
+
+            # Scale for display (max 520px wide)
             disp_W = min(520, orig_W)
             scale  = disp_W / orig_W
             disp_H = int(orig_H * scale)
-            thumb  = anchor_pil.resize((disp_W, disp_H), Image.LANCZOS)
-            buf    = io.BytesIO()
+
+            # Encode resized anchor as base64 JPEG for the component
+            thumb = anchor_pil.resize((disp_W, disp_H), Image.LANCZOS)
+            buf   = io.BytesIO()
             thumb.save(buf, format="JPEG", quality=88)
-            b64    = base64.b64encode(buf.getvalue()).decode()
+            b64     = base64.b64encode(buf.getvalue()).decode()
             img_src = f"data:image/jpeg;base64,{b64}"
 
-            # Session state keys for bbox coords
-            for _k, _v in [("vx1",0),("vy1",0),("vx2",disp_W),("vy2",disp_H)]:
-                if _k not in st.session_state:
-                    st.session_state[_k] = _v
+            # ── Bidirectional bbox component ──────────────────────────
+            # Uses st.components.v1.declare_component pattern:
+            # The iframe renders the canvas + calls Streamlit.setComponentValue()
+            # which returns the value directly to Python — no postMessage tricks.
+            # This is the ONLY reliable way to get data from JS → Python in Streamlit.
 
-            st.caption("✏️ Draw a rectangle on the image, or enter coords manually.")
+            _bbox_component = st.components.v1.declare_component(
+                "bbox_canvas",
+                url=None,    # inline HTML via html= kwarg below — not supported
+            ) if False else None  # placeholder — use html trick below
 
-            # HTML5 canvas component — draws image, lets user drag a rect,
-            # then sends pixel coords back via postMessage → Streamlit
-            canvas_html = f"""
-<div style="position:relative;display:inline-block;border:1px solid #2a4070;border-radius:6px;overflow:hidden;">
-  <canvas id="bc" width="{disp_W}" height="{disp_H}"
-    style="display:block;cursor:crosshair;"></canvas>
-</div>
-<div id="coords" style="font-family:monospace;font-size:12px;color:#5b9cf6;
-     margin-top:6px;padding:6px 10px;background:#0d1220;border-radius:4px;
-     border:1px solid #1a3a6a;">
-  Draw a rectangle on the image above
+            # Correct approach: st.components.v1.html renders a sandboxed iframe.
+            # We use the streamlit-component-lib loaded from CDN to call
+            # Streamlit.setComponentValue() and get the return value.
+            # This requires a self-contained HTML page with the lib loaded.
+
+            component_html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="https://cdn.jsdelivr.net/npm/streamlit-component-lib@2.0.0/dist/index.js"></script>
+<style>
+  * {{ margin:0; padding:0; box-sizing:border-box; }}
+  body {{ background:#080a0f; font-family:monospace; }}
+  #wrap {{ display:inline-block; border:1px solid #2a4070; border-radius:6px; overflow:hidden; }}
+  canvas {{ display:block; cursor:crosshair; }}
+  #info {{ font-size:11px; color:#5b9cf6; padding:6px 10px;
+           background:#0d1220; border-top:1px solid #1a3a6a; }}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="bc" width="{disp_W}" height="{disp_H}"></canvas>
+  <div id="info">✏️ Draw a rectangle around the object</div>
 </div>
 <script>
 (function(){{
+  // Load streamlit-component-lib and init
+  let _ready = false;
+  function tryInit() {{
+    if (typeof Streamlit !== 'undefined') {{
+      Streamlit.setFrameHeight({disp_H + 36});
+      _ready = true;
+    }} else {{
+      setTimeout(tryInit, 50);
+    }}
+  }}
+  tryInit();
+
   const canvas = document.getElementById('bc');
   const ctx    = canvas.getContext('2d');
-  const info   = document.getElementById('coords');
-  const img    = new Image();
-  img.src      = '{img_src}';
-  img.onload   = () => ctx.drawImage(img, 0, 0);
+  const info   = document.getElementById('info');
+  const scale  = {scale};
+  const origW  = {orig_W};
+  const origH  = {orig_H};
 
-  let x0=0,y0=0,x1=0,y1=0,drawing=false;
+  // Draw image
+  const img = new Image();
+  img.src = '{img_src}';
+  img.onload = () => ctx.drawImage(img, 0, 0);
 
-  function redraw(){{
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.drawImage(img,0,0);
-    if(x0!==x1 || y0!==y1){{
-      ctx.fillStyle='rgba(91,156,246,0.15)';
-      ctx.fillRect(x0,y0,x1-x0,y1-y0);
-      ctx.strokeStyle='#5b9cf6';
-      ctx.lineWidth=2;
-      ctx.strokeRect(x0,y0,x1-x0,y1-y0);
+  let x0=0,y0=0,x1=0,y1=0,dragging=false;
+
+  function clamp(v, lo, hi) {{ return Math.max(lo, Math.min(hi, v)); }}
+
+  function getPos(e) {{
+    const r = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return [
+      clamp(Math.round(src.clientX - r.left), 0, canvas.width),
+      clamp(Math.round(src.clientY - r.top),  0, canvas.height)
+    ];
+  }}
+
+  function redraw() {{
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+    const rx = Math.min(x0,x1), ry = Math.min(y0,y1);
+    const rw = Math.abs(x1-x0),  rh = Math.abs(y1-y0);
+    if (rw > 2 && rh > 2) {{
+      ctx.fillStyle   = 'rgba(91,156,246,0.18)';
+      ctx.strokeStyle = '#5b9cf6';
+      ctx.lineWidth   = 2;
+      ctx.fillRect(rx,ry,rw,rh);
+      ctx.strokeRect(rx,ry,rw,rh);
+      // Corner handles
+      ctx.fillStyle = '#5b9cf6';
+      [[rx,ry],[rx+rw,ry],[rx,ry+rh],[rx+rw,ry+rh]].forEach(([cx,cy])=>{{
+        ctx.beginPath(); ctx.arc(cx,cy,4,0,Math.PI*2); ctx.fill();
+      }});
     }}
   }}
 
-  canvas.addEventListener('mousedown', e=>{{
-    const r=canvas.getBoundingClientRect();
-    x0=Math.round(e.clientX-r.left); y0=Math.round(e.clientY-r.top);
-    x1=x0; y1=y0; drawing=true;
-  }});
-  canvas.addEventListener('mousemove', e=>{{
-    if(!drawing) return;
-    const r=canvas.getBoundingClientRect();
-    x1=Math.round(e.clientX-r.left); y1=Math.round(e.clientY-r.top);
-    redraw();
-  }});
-  canvas.addEventListener('mouseup', e=>{{
-    drawing=false;
-    // Normalise so x0<x1, y0<y1
-    let [ax,bx]=[Math.min(x0,x1),Math.max(x0,x1)];
-    let [ay,by]=[Math.min(y0,y1),Math.max(y0,y1)];
-    info.textContent = 'Box (display px): ['+ax+', '+ay+', '+bx+', '+by+']';
-    // Send to Streamlit via postMessage
-    window.parent.postMessage({{
-      type:'bbox',x1:ax,y1:ay,x2:bx,y2:by,
-      scale:{scale},origW:{orig_W},origH:{orig_H}
-    }},'*');
-  }});
-  // Touch support
-  canvas.addEventListener('touchstart', e=>{{
-    e.preventDefault();
-    const t=e.touches[0], r=canvas.getBoundingClientRect();
-    x0=Math.round(t.clientX-r.left); y0=Math.round(t.clientY-r.top);
-    x1=x0; y1=y0; drawing=true;
-  }},{{passive:false}});
-  canvas.addEventListener('touchmove', e=>{{
-    e.preventDefault();
-    if(!drawing) return;
-    const t=e.touches[0], r=canvas.getBoundingClientRect();
-    x1=Math.round(t.clientX-r.left); y1=Math.round(t.clientY-r.top);
-    redraw();
-  }},{{passive:false}});
-  canvas.addEventListener('touchend', e=>{{
-    drawing=false;
-    let [ax,bx]=[Math.min(x0,x1),Math.max(x0,x1)];
-    let [ay,by]=[Math.min(y0,y1),Math.max(y0,y1)];
-    window.parent.postMessage({{
-      type:'bbox',x1:ax,y1:ay,x2:bx,y2:by,
-      scale:{scale},origW:{orig_W},origH:{orig_H}
-    }},'*');
-  }});
+  function finish() {{
+    dragging = false;
+    const ax = Math.min(x0,x1), bx = Math.max(x0,x1);
+    const ay = Math.min(y0,y1), by = Math.max(y0,y1);
+    if (bx-ax < 4 || by-ay < 4) {{
+      info.textContent = '✏️ Draw a bigger rectangle';
+      return;
+    }}
+    // Convert display coords → original image coords
+    const ox1 = Math.round(ax / scale);
+    const oy1 = Math.round(ay / scale);
+    const ox2 = Math.min(origW, Math.round(bx / scale));
+    const oy2 = Math.min(origH, Math.round(by / scale));
+    info.textContent = `✅  original px: [${{ox1}}, ${{oy1}}, ${{ox2}}, ${{oy2}}]`;
+    // Send to Python via Streamlit component value
+    if (_ready && typeof Streamlit !== 'undefined') {{
+      Streamlit.setComponentValue([ox1, oy1, ox2, oy2]);
+    }}
+  }}
+
+  canvas.addEventListener('mousedown',  e=>{{ [x0,y0]=getPos(e); x1=x0; y1=y0; dragging=true; }});
+  canvas.addEventListener('mousemove',  e=>{{ if(!dragging) return; [x1,y1]=getPos(e); redraw(); }});
+  canvas.addEventListener('mouseup',    e=>{{ [x1,y1]=getPos(e); redraw(); finish(); }});
+  canvas.addEventListener('mouseleave', e=>{{ if(dragging){{ [x1,y1]=getPos(e); redraw(); finish(); }} }});
+
+  canvas.addEventListener('touchstart', e=>{{ e.preventDefault(); [x0,y0]=getPos(e); x1=x0; y1=y0; dragging=true; }}, {{passive:false}});
+  canvas.addEventListener('touchmove',  e=>{{ e.preventDefault(); if(!dragging) return; [x1,y1]=getPos(e); redraw(); }}, {{passive:false}});
+  canvas.addEventListener('touchend',   e=>{{ e.preventDefault(); finish(); }}, {{passive:false}});
 }})();
 </script>
-"""
-            st.components.v1.html(canvas_html, height=disp_H + 50, scrolling=False)
+</body>
+</html>"""
 
-            # Coord inputs — user can also type directly
-            # JS postMessage cannot update Streamlit widgets directly,
-            # so we show number inputs the user adjusts after drawing.
-            # The canvas gives visual feedback; inputs give exact control.
-            st.caption("Adjust coords if needed (canvas gives approximate values):")
-            bc = st.columns(4)
-            ax1 = bc[0].number_input("x1", 0, orig_W, st.session_state.get("vx1", 0),      key="vx1")
-            ay1 = bc[1].number_input("y1", 0, orig_H, st.session_state.get("vy1", 0),      key="vy1")
-            ax2 = bc[2].number_input("x2", 0, orig_W, st.session_state.get("vx2", orig_W), key="vx2")
-            ay2 = bc[3].number_input("y2", 0, orig_H, st.session_state.get("vy2", orig_H), key="vy2")
-            drawn_bbox = [ax1, ay1, ax2, ay2]
+            # declare_component with inline HTML is not supported directly.
+            # Use the pattern: write HTML to a temp file and serve, OR
+            # use the documented approach: iframe via st.components.v1.html
+            # BUT st.components.v1.html cannot return values.
+            #
+            # REAL solution: use st.components.v1.declare_component with
+            # a path to an HTML folder. We write it to a temp dir.
+            import tempfile as _tf, pathlib as _pl
+
+            _comp_dir = _pl.Path(_tf.gettempdir()) / "bbox_canvas_comp"
+            _comp_dir.mkdir(exist_ok=True)
+            (_comp_dir / "index.html").write_text(component_html, encoding="utf-8")
+
+            _bbox_drawer = st.components.v1.declare_component(
+                "bbox_canvas",
+                path=str(_comp_dir),
+            )
+
+            st.caption("✏️ Draw a rectangle around the object in the image below:")
+            raw_bbox = _bbox_drawer(key="bbox_draw", default=None)
+
+            # raw_bbox is [ox1, oy1, ox2, oy2] in original image coords
+            # Update session_state when a new bbox is drawn
+            if raw_bbox and len(raw_bbox) == 4:
+                st.session_state["bbox_x1"] = int(raw_bbox[0])
+                st.session_state["bbox_y1"] = int(raw_bbox[1])
+                st.session_state["bbox_x2"] = int(raw_bbox[2])
+                st.session_state["bbox_y2"] = int(raw_bbox[3])
+
+            # Show current bbox from session_state (persists across reruns)
+            _bx1 = st.session_state.get("bbox_x1", 0)
+            _by1 = st.session_state.get("bbox_y1", 0)
+            _bx2 = st.session_state.get("bbox_x2", orig_W)
+            _by2 = st.session_state.get("bbox_y2", orig_H)
+
+            if raw_bbox:
+                st.success(f"✅ Box captured: [{_bx1}, {_by1}, {_bx2}, {_by2}]  (original image px)")
+            else:
+                st.caption("Draw on the canvas above to set the bounding box.")
+
+            # Fine-tune inputs (optional — pre-filled from drawn bbox)
+            with st.expander("Fine-tune bbox coords", expanded=False):
+                bc = st.columns(4)
+                _bx1 = bc[0].number_input("x1", 0, orig_W, _bx1, key="vx1")
+                _by1 = bc[1].number_input("y1", 0, orig_H, _by1, key="vy1")
+                _bx2 = bc[2].number_input("x2", 0, orig_W, _bx2, key="vx2")
+                _by2 = bc[3].number_input("y2", 0, orig_H, _by2, key="vy2")
+
+            drawn_bbox = [_bx1, _by1, _bx2, _by2]
 
     with col_scn:
         st.markdown('<div class="section-label">Scene — query image</div>', unsafe_allow_html=True)
@@ -734,6 +790,14 @@ elif "🖼️" in mode:
             st.error("Upload a scene image."); st.stop()
         if not drawn_bbox:
             st.error("Draw a bounding box on the anchor image first."); st.stop()
+
+        # Sanity-check bbox: ensure x1<x2 and y1<y2, swap if needed
+        _db = drawn_bbox
+        _db = [min(_db[0],_db[2]), min(_db[1],_db[3]),
+               max(_db[0],_db[2]), max(_db[1],_db[3])]
+        if _db[2]-_db[0] < 4 or _db[3]-_db[1] < 4:
+            st.error(f"Bounding box too small: {_db}. Draw a larger rectangle."); st.stop()
+        drawn_bbox = _db
 
         anchor_path = scene_path = None
         try:
