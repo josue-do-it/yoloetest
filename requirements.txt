@@ -1,15 +1,12 @@
 streamlit>=1.32.0
 
-# Pin canvas to 0.9.3 — 0.9.4+ broke with Streamlit >= 1.35 (image_to_url removed)
-streamlit-drawable-canvas==0.9.3
-
-# OpenCV headless — Debian Trixie compatible (no GUI libs needed)
+# OpenCV headless — Debian Trixie compatible
 opencv-python-headless==4.9.0.80
 
 numpy>=1.24.0,<2.0.0
 Pillow>=10.0.0
 
-# PyTorch CPU wheels — Streamlit Cloud has no GPU
+# PyTorch CPU — Streamlit Cloud has no GPU
 torch==2.2.2+cpu
 torchvision==0.17.2+cpu
 --extra-index-url https://download.pytorch.org/whl/cpu
@@ -17,7 +14,7 @@ torchvision==0.17.2+cpu
 # Ultralytics YOLOE
 ultralytics>=8.4.0
 
-# CLIP text encoder — required by model.set_classes() (text prompt mode)
+# CLIP — required by model.set_classes() (text prompt)
 git+https://github.com/ultralytics/CLIP.git
 
 # MobileCLIP — required by free-prompt *-pf.pt models
