@@ -579,193 +579,53 @@ elif "🖼️" in mode:
             anchor_pil = Image.open(anchor_up).convert("RGB")
             orig_W, orig_H = anchor_pil.size
 
-            import base64
+            # ── Pure Streamlit bbox selector ──────────────────────────
+            # No external component needed.
+            # Four sliders set the bbox; a PIL-rendered preview updates
+            # in real-time showing the rectangle on the anchor image.
+            # This works on any deployment with zero dependencies.
 
-            # Scale for display (max 520px wide)
-            disp_W = min(520, orig_W)
-            scale  = disp_W / orig_W
-            disp_H = int(orig_H * scale)
+            st.caption("Set the bounding box using the sliders below:")
 
-            # Encode resized anchor as base64 JPEG for the component
-            thumb = anchor_pil.resize((disp_W, disp_H), Image.LANCZOS)
-            buf   = io.BytesIO()
-            thumb.save(buf, format="JPEG", quality=88)
-            b64     = base64.b64encode(buf.getvalue()).decode()
-            img_src = f"data:image/jpeg;base64,{b64}"
+            # Init session_state defaults (full image)
+            if "bbox_x1" not in st.session_state: st.session_state["bbox_x1"] = 0
+            if "bbox_y1" not in st.session_state: st.session_state["bbox_y1"] = 0
+            if "bbox_x2" not in st.session_state: st.session_state["bbox_x2"] = orig_W
+            if "bbox_y2" not in st.session_state: st.session_state["bbox_y2"] = orig_H
 
-            # ── Bidirectional bbox component ──────────────────────────
-            # Uses st.components.v1.declare_component pattern:
-            # The iframe renders the canvas + calls Streamlit.setComponentValue()
-            # which returns the value directly to Python — no postMessage tricks.
-            # This is the ONLY reliable way to get data from JS → Python in Streamlit.
+            # Sliders in two rows
+            row1 = st.columns(2)
+            row2 = st.columns(2)
+            _bx1 = row1[0].slider("x1 (left)",   0, orig_W-1, st.session_state["bbox_x1"], key="vx1")
+            _bx2 = row1[1].slider("x2 (right)",  1, orig_W,   st.session_state["bbox_x2"], key="vx2")
+            _by1 = row2[0].slider("y1 (top)",    0, orig_H-1, st.session_state["bbox_y1"], key="vy1")
+            _by2 = row2[1].slider("y2 (bottom)", 1, orig_H,   st.session_state["bbox_y2"], key="vy2")
 
-            _bbox_component = st.components.v1.declare_component(
-                "bbox_canvas",
-                url=None,    # inline HTML via html= kwarg below — not supported
-            ) if False else None  # placeholder — use html trick below
+            # Clamp so x1<x2, y1<y2
+            _bx1, _bx2 = min(_bx1,_bx2-1), max(_bx1+1,_bx2)
+            _by1, _by2 = min(_by1,_by2-1), max(_by1+1,_by2)
 
-            # Correct approach: st.components.v1.html renders a sandboxed iframe.
-            # We use the streamlit-component-lib loaded from CDN to call
-            # Streamlit.setComponentValue() and get the return value.
-            # This requires a self-contained HTML page with the lib loaded.
+            # Save to session_state
+            st.session_state.update({"bbox_x1":_bx1,"bbox_x2":_bx2,
+                                     "bbox_y1":_by1,"bbox_y2":_by2})
 
-            component_html = f"""<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<script src="https://cdn.jsdelivr.net/npm/streamlit-component-lib@2.0.0/dist/index.js"></script>
-<style>
-  * {{ margin:0; padding:0; box-sizing:border-box; }}
-  body {{ background:#080a0f; font-family:monospace; }}
-  #wrap {{ display:inline-block; border:1px solid #2a4070; border-radius:6px; overflow:hidden; }}
-  canvas {{ display:block; cursor:crosshair; }}
-  #info {{ font-size:11px; color:#5b9cf6; padding:6px 10px;
-           background:#0d1220; border-top:1px solid #1a3a6a; }}
-</style>
-</head>
-<body>
-<div id="wrap">
-  <canvas id="bc" width="{disp_W}" height="{disp_H}"></canvas>
-  <div id="info">✏️ Draw a rectangle around the object</div>
-</div>
-<script>
-(function(){{
-  // Load streamlit-component-lib and init
-  let _ready = false;
-  function tryInit() {{
-    if (typeof Streamlit !== 'undefined') {{
-      Streamlit.setFrameHeight({disp_H + 36});
-      _ready = true;
-    }} else {{
-      setTimeout(tryInit, 50);
-    }}
-  }}
-  tryInit();
-
-  const canvas = document.getElementById('bc');
-  const ctx    = canvas.getContext('2d');
-  const info   = document.getElementById('info');
-  const scale  = {scale};
-  const origW  = {orig_W};
-  const origH  = {orig_H};
-
-  // Draw image
-  const img = new Image();
-  img.src = '{img_src}';
-  img.onload = () => ctx.drawImage(img, 0, 0);
-
-  let x0=0,y0=0,x1=0,y1=0,dragging=false;
-
-  function clamp(v, lo, hi) {{ return Math.max(lo, Math.min(hi, v)); }}
-
-  function getPos(e) {{
-    const r = canvas.getBoundingClientRect();
-    const src = e.touches ? e.touches[0] : e;
-    return [
-      clamp(Math.round(src.clientX - r.left), 0, canvas.width),
-      clamp(Math.round(src.clientY - r.top),  0, canvas.height)
-    ];
-  }}
-
-  function redraw() {{
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0);
-    const rx = Math.min(x0,x1), ry = Math.min(y0,y1);
-    const rw = Math.abs(x1-x0),  rh = Math.abs(y1-y0);
-    if (rw > 2 && rh > 2) {{
-      ctx.fillStyle   = 'rgba(91,156,246,0.18)';
-      ctx.strokeStyle = '#5b9cf6';
-      ctx.lineWidth   = 2;
-      ctx.fillRect(rx,ry,rw,rh);
-      ctx.strokeRect(rx,ry,rw,rh);
-      // Corner handles
-      ctx.fillStyle = '#5b9cf6';
-      [[rx,ry],[rx+rw,ry],[rx,ry+rh],[rx+rw,ry+rh]].forEach(([cx,cy])=>{{
-        ctx.beginPath(); ctx.arc(cx,cy,4,0,Math.PI*2); ctx.fill();
-      }});
-    }}
-  }}
-
-  function finish() {{
-    dragging = false;
-    const ax = Math.min(x0,x1), bx = Math.max(x0,x1);
-    const ay = Math.min(y0,y1), by = Math.max(y0,y1);
-    if (bx-ax < 4 || by-ay < 4) {{
-      info.textContent = '✏️ Draw a bigger rectangle';
-      return;
-    }}
-    // Convert display coords → original image coords
-    const ox1 = Math.round(ax / scale);
-    const oy1 = Math.round(ay / scale);
-    const ox2 = Math.min(origW, Math.round(bx / scale));
-    const oy2 = Math.min(origH, Math.round(by / scale));
-    info.textContent = `✅  original px: [${{ox1}}, ${{oy1}}, ${{ox2}}, ${{oy2}}]`;
-    // Send to Python via Streamlit component value
-    if (_ready && typeof Streamlit !== 'undefined') {{
-      Streamlit.setComponentValue([ox1, oy1, ox2, oy2]);
-    }}
-  }}
-
-  canvas.addEventListener('mousedown',  e=>{{ [x0,y0]=getPos(e); x1=x0; y1=y0; dragging=true; }});
-  canvas.addEventListener('mousemove',  e=>{{ if(!dragging) return; [x1,y1]=getPos(e); redraw(); }});
-  canvas.addEventListener('mouseup',    e=>{{ [x1,y1]=getPos(e); redraw(); finish(); }});
-  canvas.addEventListener('mouseleave', e=>{{ if(dragging){{ [x1,y1]=getPos(e); redraw(); finish(); }} }});
-
-  canvas.addEventListener('touchstart', e=>{{ e.preventDefault(); [x0,y0]=getPos(e); x1=x0; y1=y0; dragging=true; }}, {{passive:false}});
-  canvas.addEventListener('touchmove',  e=>{{ e.preventDefault(); if(!dragging) return; [x1,y1]=getPos(e); redraw(); }}, {{passive:false}});
-  canvas.addEventListener('touchend',   e=>{{ e.preventDefault(); finish(); }}, {{passive:false}});
-}})();
-</script>
-</body>
-</html>"""
-
-            # declare_component with inline HTML is not supported directly.
-            # Use the pattern: write HTML to a temp file and serve, OR
-            # use the documented approach: iframe via st.components.v1.html
-            # BUT st.components.v1.html cannot return values.
-            #
-            # REAL solution: use st.components.v1.declare_component with
-            # a path to an HTML folder. We write it to a temp dir.
-            import tempfile as _tf, pathlib as _pl
-
-            _comp_dir = _pl.Path(_tf.gettempdir()) / "bbox_canvas_comp"
-            _comp_dir.mkdir(exist_ok=True)
-            (_comp_dir / "index.html").write_text(component_html, encoding="utf-8")
-
-            _bbox_drawer = st.components.v1.declare_component(
-                "bbox_canvas",
-                path=str(_comp_dir),
-            )
-
-            st.caption("✏️ Draw a rectangle around the object in the image below:")
-            raw_bbox = _bbox_drawer(key="bbox_draw", default=None)
-
-            # raw_bbox is [ox1, oy1, ox2, oy2] in original image coords
-            # Update session_state when a new bbox is drawn
-            if raw_bbox and len(raw_bbox) == 4:
-                st.session_state["bbox_x1"] = int(raw_bbox[0])
-                st.session_state["bbox_y1"] = int(raw_bbox[1])
-                st.session_state["bbox_x2"] = int(raw_bbox[2])
-                st.session_state["bbox_y2"] = int(raw_bbox[3])
-
-            # Show current bbox from session_state (persists across reruns)
-            _bx1 = st.session_state.get("bbox_x1", 0)
-            _by1 = st.session_state.get("bbox_y1", 0)
-            _bx2 = st.session_state.get("bbox_x2", orig_W)
-            _by2 = st.session_state.get("bbox_y2", orig_H)
-
-            if raw_bbox:
-                st.success(f"✅ Box captured: [{_bx1}, {_by1}, {_bx2}, {_by2}]  (original image px)")
-            else:
-                st.caption("Draw on the canvas above to set the bounding box.")
-
-            # Fine-tune inputs (optional — pre-filled from drawn bbox)
-            with st.expander("Fine-tune bbox coords", expanded=False):
-                bc = st.columns(4)
-                _bx1 = bc[0].number_input("x1", 0, orig_W, _bx1, key="vx1")
-                _by1 = bc[1].number_input("y1", 0, orig_H, _by1, key="vy1")
-                _bx2 = bc[2].number_input("x2", 0, orig_W, _bx2, key="vx2")
-                _by2 = bc[3].number_input("y2", 0, orig_H, _by2, key="vy2")
+            # Live preview: draw bbox rectangle on a copy of the anchor image
+            import cv2 as _cv2
+            preview = np.array(anchor_pil.copy())
+            # Draw filled rect with alpha
+            overlay = preview.copy()
+            _cv2.rectangle(overlay, (_bx1,_by1), (_bx2,_by2), (91,156,246), -1)
+            preview = _cv2.addWeighted(overlay, 0.25, preview, 0.75, 0)
+            # Draw border + corner handles
+            _cv2.rectangle(preview, (_bx1,_by1), (_bx2,_by2), (91,156,246), 2)
+            for cx,cy in [(_bx1,_by1),(_bx2,_by1),(_bx1,_by2),(_bx2,_by2)]:
+                _cv2.circle(preview, (cx,cy), 6, (91,156,246), -1)
+            # Draw dimensions label
+            lbl = f"{_bx2-_bx1} x {_by2-_by1} px"
+            _cv2.putText(preview, lbl, (_bx1+4, max(_by1-6,14)),
+                         _cv2.FONT_HERSHEY_SIMPLEX, 0.55, (91,156,246), 2)
+            st.image(preview, use_container_width=True,
+                     caption=f"Preview — box [{_bx1},{_by1},{_bx2},{_by2}]")
 
             drawn_bbox = [_bx1, _by1, _bx2, _by2]
 
