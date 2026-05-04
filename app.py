@@ -10,7 +10,20 @@ import sys, os, io, json, tempfile, importlib, traceback
 from pathlib import Path
 
 import streamlit as st
-import cv2
+
+# ── OpenCV import guard ───────────────────────────────────────────────────────
+# On Streamlit Cloud the native bootstrap fails if system libs are missing.
+# packages.txt installs libgl1/libglib2.0-0 etc., but guard here for clarity.
+try:
+    import cv2
+except ImportError as _e:
+    st.error(
+        f"OpenCV failed to import: {_e}\n\n"
+        "Make sure `packages.txt` contains `libgl1` and `libglib2.0-0`, "
+        "and `requirements.txt` uses `opencv-python-headless` (not `opencv-python`)."
+    )
+    st.stop()
+
 import numpy as np
 from PIL import Image
 
@@ -499,12 +512,14 @@ if "📝" in mode:
         if unique_lines:
             st.markdown('<div class="section-label" style="margin-top:10px">Select tags to detect</div>', unsafe_allow_html=True)
 
-            # Per-tag checkboxes rendered as pills via columns
+            # Per-tag checkboxes — key includes tag text so changing
+            # the textarea never reuses a stale checkbox state
             selected = []
             cols = st.columns(min(len(unique_lines), 3))
             for i, tag in enumerate(unique_lines):
+                safe_key = "tag_" + "".join(c if c.isalnum() else "_" for c in tag)[:40]
                 with cols[i % len(cols)]:
-                    if st.checkbox(tag, value=True, key=f"tag_{i}"):
+                    if st.checkbox(tag, value=True, key=safe_key):
                         selected.append(tag)
 
             if selected:
@@ -594,8 +609,10 @@ elif "🖼️" in mode:
                     if rects:
                         r = rects[-1]
                         # canvas gives left,top,width,height in display coords
+                        # scaleX/scaleY are applied when user resizes a rect handle
                         lx = r["left"];  ly = r["top"]
-                        rw = r["width"]; rh = r["height"]
+                        rw = r["width"]  * r.get("scaleX", 1)
+                        rh = r["height"] * r.get("scaleY", 1)
                         # back to original image coords
                         x1 = int(lx / scale);       y1 = int(ly / scale)
                         x2 = int((lx+rw) / scale);  y2 = int((ly+rh) / scale)
@@ -682,6 +699,8 @@ else:
         st.info("**Free prompt** detects all objects automatically.\n\nNo class names or reference image needed. All detected objects are listed — pick any to crop for Any6D.")
         run_f = st.button("▶  Run — Free Prompt", use_container_width=True, key="run_f")
 
+    # Cache detection results in session_state so ✂ Crop buttons
+    # don't retrigger model.predict() on every Streamlit rerun
     if run_f:
         if not scene_up:
             st.error("Upload a scene image."); st.stop()
@@ -696,61 +715,70 @@ else:
             with st.spinner("Detecting all objects…"):
                 _, _, _, raw_results = run_free(m_pf, scene_path, scene_rgb, conf_thresh)
                 all_dets = parse_all(raw_results, H, W)
+            all_dets.sort(key=lambda d: d["conf"], reverse=True)
+            # Store in session_state — persists across reruns triggered by crop buttons
+            st.session_state["free_dets"]       = all_dets
+            st.session_state["free_scene_rgb"]  = scene_rgb
         except Exception as e:
             st.error(f"Detection failed: {e}"); traceback.print_exc(file=sys.stderr); st.stop()
         finally:
             safe_unlink(scene_path)
 
-        if not all_dets:
-            st.warning("No objects detected. Try lowering the confidence threshold."); st.stop()
+    # Retrieve cached results (populated either this run or a previous one)
+    all_dets  = st.session_state.get("free_dets",      [])
+    scene_rgb_free = st.session_state.get("free_scene_rgb", None)
 
-        # Sort by confidence descending
-        all_dets.sort(key=lambda d: d["conf"], reverse=True)
+    if not all_dets or scene_rgb_free is None:
+        if run_f:   # run was just pressed but produced nothing
+            st.warning("No objects detected. Try lowering the confidence threshold.")
+        st.stop()
 
-        # Overview image with all detections
-        COLORS = [(91,156,246),(163,122,245),(61,214,160),(246,180,91),(246,91,91),(91,246,220)]
-        overview = scene_rgb.copy()
-        for i, d in enumerate(all_dets):
-            col = COLORS[i % len(COLORS)]
-            overview = overlay_mask(overview, d["mask"], color=col, alpha=0.3)
-            x1,y1,x2,y2 = [int(v) for v in d["bbox"]]
-            cv2.rectangle(overview,(x1,y1),(x2,y2),col,2)
-            cv2.putText(overview,f"[{i}] {d['label']} {d['conf']:.2f}",
-                        (x1,max(y1-6,14)),cv2.FONT_HERSHEY_SIMPLEX,0.52,col,2)
+    all_dets = all_dets  # already sorted
+
+    # Overview image with all detections
+    COLORS = [(91,156,246),(163,122,245),(61,214,160),(246,180,91),(246,91,91),(91,246,220)]
+    overview = scene_rgb_free.copy()
+    for i, d in enumerate(all_dets):
+        col = COLORS[i % len(COLORS)]
+        overview = overlay_mask(overview, d["mask"], color=col, alpha=0.3)
+        x1,y1,x2,y2 = [int(v) for v in d["bbox"]]
+        cv2.rectangle(overview,(x1,y1),(x2,y2),col,2)
+        cv2.putText(overview,f"[{i}] {d['label']} {d['conf']:.2f}",
+                    (x1,max(y1-6,14)),cv2.FONT_HERSHEY_SIMPLEX,0.52,col,2)
 
         st.markdown("---")
-        st.markdown('<div class="section-label">Detection overview</div>', unsafe_allow_html=True)
-        st.image(overview, use_container_width=True)
+    st.markdown('<div class="section-label">Detection overview</div>', unsafe_allow_html=True)
+    st.image(overview, use_container_width=True)
 
-        # Summary metrics
-        mc = st.columns(3)
-        mc[0].markdown(f'<div class="metric-card"><div class="val">{len(all_dets)}</div><div class="lbl">Objects</div></div>',unsafe_allow_html=True)
-        uniq_cls = len(set(d["label"] for d in all_dets))
-        mc[1].markdown(f'<div class="metric-card"><div class="val">{uniq_cls}</div><div class="lbl">Classes</div></div>',unsafe_allow_html=True)
-        mc[2].markdown(f'<div class="metric-card"><div class="val">{all_dets[0]["conf"]:.3f}</div><div class="lbl">Best conf</div></div>',unsafe_allow_html=True)
+    # Summary metrics
+    mc = st.columns(3)
+    mc[0].markdown(f'<div class="metric-card"><div class="val">{len(all_dets)}</div><div class="lbl">Objects</div></div>',unsafe_allow_html=True)
+    uniq_cls = len(set(d["label"] for d in all_dets))
+    mc[1].markdown(f'<div class="metric-card"><div class="val">{uniq_cls}</div><div class="lbl">Classes</div></div>',unsafe_allow_html=True)
+    mc[2].markdown(f'<div class="metric-card"><div class="val">{all_dets[0]["conf"]:.3f}</div><div class="lbl">Best conf</div></div>',unsafe_allow_html=True)
 
-        # ── Full object list ──────────────────────────────────────
-        st.markdown("---")
-        st.markdown('<div class="section-label">All detected objects — click to crop</div>', unsafe_allow_html=True)
+    # ── Full object list ──────────────────────────────────────
+    st.markdown("---")
+    st.markdown('<div class="section-label">All detected objects — click to crop</div>', unsafe_allow_html=True)
 
-        for i, d in enumerate(all_dets):
-            col_info2, col_btn = st.columns([4, 1])
-            mask_px = int(d["mask"].sum())
-            col_info2.markdown(
-                f'<div class="det-row">'
-                f'<div class="det-label">[{i}] {d["label"]}</div>'
-                f'<div class="det-conf">conf {d["conf"]:.3f}</div>'
-                f'<div class="det-mask">{mask_px:,} px</div>'
-                f'</div>',
-                unsafe_allow_html=True
+    for i, d in enumerate(all_dets):
+        col_info2, col_btn = st.columns([4, 1])
+        mask_px = int(d["mask"].sum())
+        col_info2.markdown(
+            f'<div class="det-row">'
+            f'<div class="det-label">[{i}] {d["label"]}</div>'
+            f'<div class="det-conf">conf {d["conf"]:.3f}</div>'
+            f'<div class="det-mask">{mask_px:,} px</div>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+        crop_clicked = col_btn.button("✂ Crop", key=f"crop_{i}")
+
+        if crop_clicked:
+            st.markdown(f"#### Object [{i}] — {d['label']}")
+            show_results(
+                scene_rgb_free, d["mask"], d["bbox"], d["conf"],
+                crop_padding, use_largest, erode_iters, dilate_iters,
+                mode_label=f"free/{d['label']}", key_suffix=f"f{i}",
             )
-            crop_clicked = col_btn.button("✂ Crop", key=f"crop_{i}")
-
-            if crop_clicked:
-                st.markdown(f"#### Object [{i}] — {d['label']}")
-                show_results(
-                    scene_rgb, d["mask"], d["bbox"], d["conf"],
-                    crop_padding, use_largest, erode_iters, dilate_iters,
-                    mode_label=f"free/{d['label']}", key_suffix=f"f{i}",
-                )
-                st.markdown("---")
+            st.markdown("---")

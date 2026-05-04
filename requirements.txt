@@ -1,13 +1,23 @@
 streamlit>=1.32.0
-ultralytics>=8.4.0
-torch>=2.0.0
-torchvision>=0.15.0
-opencv-python-headless>=4.8.0 
-numpy>=1.24.0
-Pillow>=10.0.0
-open-clip-torch>=2.20.0
-# ultralytics CLIP fork (needed for text prompt / set_classes):
-git+https://github.com/ultralytics/CLIP.git
-# ultralytics mobileclip fork (needed for free-prompt -pf models):
-git+https://github.com/ultralytics/mobileclip.git
 streamlit-drawable-canvas>=0.9.3
+
+# OpenCV — headless only, no GUI libs needed on Streamlit Cloud
+# Do NOT install opencv-python alongside this (conflict)
+opencv-python-headless==4.9.0.80
+
+numpy>=1.24.0,<2.0.0
+Pillow>=10.0.0
+
+# PyTorch — CPU wheels (Streamlit Cloud has no GPU)
+# For GPU server: remove --index-url line and let pip pick CUDA wheels
+torch>=2.1.0
+torchvision>=0.16.0
+
+# Ultralytics YOLOE
+ultralytics>=8.4.0
+
+# CLIP text encoder required by YOLOE set_classes()
+git+https://github.com/ultralytics/CLIP.git
+
+# MobileCLIP required by YOLOE free-prompt (-pf) models
+git+https://github.com/ultralytics/mobileclip.git
