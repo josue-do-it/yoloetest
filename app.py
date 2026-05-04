@@ -38,300 +38,85 @@ if str(APP_DIR) not in sys.path:
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="YOLOE Studio · Block 1",
+    page_title="YOLOE · Block 1",
     page_icon="✂️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ── CSS — full design system, light + dark mode ─────────────────────────────
+# ── CSS ──────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+*, html, body { font-family: 'IBM Plex Sans', sans-serif; }
+.stApp       { background: #080a0f; color: #d4d8e8; }
+.stSidebar   { background: #0d1017 !important; border-right: 1px solid #1e2130 !important; }
 
-/* ── TOKENS ── */
-:root {
-  --bg:          #f8f9fc;
-  --bg2:         #ffffff;
-  --bg3:         #f0f2f8;
-  --border:      #e2e6f0;
-  --border2:     #d0d6e8;
-  --text:        #111827;
-  --text2:       #4b5563;
-  --text3:       #9ca3af;
-  --accent:      #4f6ef7;
-  --accent-bg:   #eef1fe;
-  --accent-b:    #c7d0fc;
-  --purple:      #7c3aed;
-  --purple-bg:   #f3effe;
-  --purple-b:    #ddd0fa;
-  --green:       #059669;
-  --green-bg:    #ecfdf5;
-  --green-b:     #a7f3d0;
-  --red:         #dc2626;
-  --red-bg:      #fef2f2;
-  --shadow:      0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-  --shadow-md:   0 4px 12px rgba(0,0,0,.08);
-  --radius:      10px;
-  --radius-sm:   6px;
-  --font:        'Inter', system-ui, sans-serif;
-  --mono:        'JetBrains Mono', 'Fira Code', monospace;
-}
-
-[data-theme="dark"] {
-  --bg:          #0c0e14;
-  --bg2:         #12151f;
-  --bg3:         #181c28;
-  --border:      #1e2235;
-  --border2:     #252a3f;
-  --text:        #e8ecf8;
-  --text2:       #8892b0;
-  --text3:       #4a5070;
-  --accent:      #6281f8;
-  --accent-bg:   #0d1630;
-  --accent-b:    #1e2e5a;
-  --purple:      #a78bfa;
-  --purple-bg:   #1a0f35;
-  --purple-b:    #3a1f6a;
-  --green:       #34d399;
-  --green-bg:    #052e1a;
-  --green-b:     #0a4a2a;
-  --red:         #f87171;
-  --red-bg:      #2a0808;
-  --shadow:      0 1px 3px rgba(0,0,0,.3);
-  --shadow-md:   0 4px 16px rgba(0,0,0,.4);
-}
-
-/* ── BASE ── */
-*, html, body { font-family: var(--font); }
-
-.stApp {
-  background: var(--bg) !important;
-  color: var(--text) !important;
-}
-
-/* ── SIDEBAR ── */
-section[data-testid="stSidebar"] {
-  background: var(--bg2) !important;
-  border-right: 1px solid var(--border) !important;
-}
-section[data-testid="stSidebar"] > div { padding-top: 1rem; }
-
-/* ── LOGO ── */
-.yoloe-logo {
-  display: flex; align-items: center; gap: 10px;
-  padding: 4px 0 20px;
-}
-.yoloe-logo-icon {
-  width: 34px; height: 34px; border-radius: 9px;
-  background: linear-gradient(135deg, var(--accent), var(--purple));
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px; flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(79,110,247,.35);
-}
-.yoloe-logo-text { font-size: .95rem; font-weight: 700; color: var(--text); letter-spacing: -.01em; }
-.yoloe-logo-sub  { font-size: .62rem; color: var(--text3); font-family: var(--mono);
-  letter-spacing: .1em; text-transform: uppercase; margin-top: 1px; }
-
-/* ── SECTION LABEL ── */
-.section-label {
-  font-family: var(--mono); font-size: .6rem; font-weight: 600;
-  letter-spacing: .14em; text-transform: uppercase;
-  color: var(--text3); margin-bottom: 8px; padding-bottom: 6px;
-  border-bottom: 1px solid var(--border);
-}
-
-/* ── PIPELINE BANNER ── */
 .pipe-banner {
-  background: var(--bg2); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 12px 18px; margin-bottom: 20px;
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  box-shadow: var(--shadow);
+    background: #0f1520; border: 1px solid #1e2a40; border-radius: 10px;
+    padding: 12px 18px; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
-.pipe-step {
-  font-family: var(--mono); font-size: .62rem; font-weight: 600;
-  letter-spacing: .06em; padding: 4px 11px; border-radius: 20px;
-  text-transform: uppercase; white-space: nowrap;
-}
-.pipe-step.active  { background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent-b); }
-.pipe-step.pending { background: var(--bg3); color: var(--text3); border: 1px solid var(--border); }
-.pipe-arrow { color: var(--border2); font-size: .8rem; }
+.pipe-step { font-family:'IBM Plex Mono',monospace; font-size:.68rem;
+    font-weight:600; letter-spacing:.06em; padding:4px 10px;
+    border-radius:4px; text-transform:uppercase; }
+.pipe-step.active  { background:#1a2a45; color:#5b9cf6; border:1px solid #2a4070; }
+.pipe-step.pending { background:#1a1a2a; color:#3a3f5a; border:1px solid #252535; }
+.pipe-arrow { color:#2a3050; font-size:.85rem; }
 
-/* ── MODE PILL ── */
-.mode-pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 14px; border-radius: 20px;
-  font-family: var(--mono); font-size: .65rem; font-weight: 600;
-  letter-spacing: .07em; text-transform: uppercase; margin-bottom: 18px;
-}
-.pill-text   { background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent-b); }
-.pill-visual { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-b); }
-.pill-free   { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green-b); }
+.section-label { font-family:'IBM Plex Mono',monospace; font-size:.64rem;
+    letter-spacing:.12em; text-transform:uppercase; color:#4a5070;
+    margin-bottom:7px; padding-bottom:5px; border-bottom:1px solid #1a1e2e; }
 
-/* ── PAGE TITLE ── */
-.page-title {
-  font-size: 1.55rem; font-weight: 700; color: var(--text);
-  letter-spacing: -.03em; margin-bottom: 2px; line-height: 1.2;
-}
-.page-subtitle {
-  font-size: .8rem; color: var(--text2); margin-bottom: 20px; font-weight: 400;
-}
+.mode-pill { display:inline-block; padding:3px 11px; border-radius:20px;
+    font-family:'IBM Plex Mono',monospace; font-size:.63rem;
+    font-weight:600; letter-spacing:.08em; text-transform:uppercase; margin-bottom:14px; }
+.pill-text   { background:#0d2040; color:#5b9cf6; border:1px solid #1a3a6a; }
+.pill-visual { background:#1e0d3a; color:#a87af5; border:1px solid #3a1a6a; }
+.pill-free   { background:#0d2a1e; color:#3dd6a0; border:1px solid #1a4a30; }
 
-/* ── CARDS ── */
-.card {
-  background: var(--bg2); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 18px 20px;
-  box-shadow: var(--shadow);
-}
+.metric-card { background:#0d1220; border:1px solid #1a2035; border-radius:8px; padding:12px 16px; }
+.metric-card .val { font-family:'IBM Plex Mono',monospace; font-size:1.4rem;
+    font-weight:600; color:#5b9cf6; line-height:1.1; }
+.metric-card .lbl { font-size:.63rem; color:#4a5070; text-transform:uppercase;
+    letter-spacing:.08em; margin-top:3px; }
 
-/* ── METRIC CARDS ── */
-.metric-card {
-  background: var(--bg2); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 14px 18px;
-  box-shadow: var(--shadow); text-align: center;
-}
-.metric-card .val {
-  font-family: var(--mono); font-size: 1.5rem; font-weight: 700;
-  color: var(--accent); line-height: 1.1;
-}
-.metric-card .lbl {
-  font-size: .62rem; color: var(--text3); text-transform: uppercase;
-  letter-spacing: .09em; margin-top: 4px; font-weight: 500;
-}
+.panel-title { font-family:'IBM Plex Mono',monospace; font-size:.66rem;
+    color:#4a5070; text-transform:uppercase; letter-spacing:.1em; margin-bottom:8px; }
 
-/* ── PANEL TITLE ── */
-.panel-title {
-  font-family: var(--mono); font-size: .62rem; font-weight: 600;
-  color: var(--text3); text-transform: uppercase; letter-spacing: .1em;
-  margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
-}
+.crop-info { background:#0f2a1e; border:1px solid #1a4a30; border-radius:6px;
+    padding:8px 12px; font-family:'IBM Plex Mono',monospace;
+    font-size:.68rem; color:#3dd6a0; margin-top:8px; line-height:1.9; }
 
-/* ── CROP INFO ── */
-.crop-info {
-  background: var(--green-bg); border: 1px solid var(--green-b);
-  border-radius: var(--radius-sm); padding: 9px 13px;
-  font-family: var(--mono); font-size: .68rem; color: var(--green);
-  margin-top: 10px; line-height: 2;
-}
+.tag-pill { display:inline-block; padding:4px 12px; border-radius:20px;
+    font-size:.75rem; font-family:'IBM Plex Mono',monospace;
+    background:#0d2040; color:#5b9cf6; border:1px solid #1a3a6a;
+    margin:3px 4px 3px 0; cursor:pointer; }
+.tag-pill.selected { background:#1a3a6a; border-color:#5b9cf6; }
 
-/* ── DETECTION ROW ── */
-.det-row {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 14px; background: var(--bg2); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); margin-bottom: 8px;
-  box-shadow: var(--shadow); transition: border-color .15s;
-}
-.det-row:hover { border-color: var(--accent-b); }
-.det-badge {
-  font-family: var(--mono); font-size: .6rem; font-weight: 700;
-  background: var(--accent-bg); color: var(--accent);
-  border: 1px solid var(--accent-b); border-radius: 4px;
-  padding: 2px 6px; min-width: 28px; text-align: center;
-}
-.det-label { font-size: .82rem; color: var(--text); font-weight: 500; flex: 1; }
-.det-conf  { font-family: var(--mono); font-size: .72rem; color: var(--accent); min-width: 55px; text-align: right; }
-.det-mask  { font-size: .68rem; color: var(--text3); min-width: 70px; text-align: right; }
+.det-row { display:flex; align-items:center; gap:10px; padding:8px 12px;
+    background:#0d1220; border:1px solid #1a2035; border-radius:8px; margin-bottom:6px; }
+.det-label { font-family:'IBM Plex Mono',monospace; font-size:.78rem; color:#d4d8e8; flex:1; }
+.det-conf  { font-family:'IBM Plex Mono',monospace; font-size:.72rem; color:#5b9cf6; min-width:50px; }
+.det-mask  { font-size:.7rem; color:#4a5070; min-width:70px; }
 
-/* ── STATUS BADGES ── */
-.status-ok  { display:inline-flex; align-items:center; gap:5px; font-size:.72rem;
-  color: var(--green); background: var(--green-bg); border: 1px solid var(--green-b);
-  border-radius: 20px; padding: 2px 9px; }
-.status-err { display:inline-flex; align-items:center; gap:5px; font-size:.72rem;
-  color: var(--red); background: var(--red-bg); border: 1px solid #fca5a5;
-  border-radius: 20px; padding: 2px 9px; }
-.status-warn { display:inline-flex; align-items:center; gap:5px; font-size:.72rem;
-  color: #d97706; background: #fffbeb; border: 1px solid #fde68a;
-  border-radius: 20px; padding: 2px 9px; }
-
-/* ── UPLOAD AREA ── */
-div[data-testid="stFileUploader"] {
-  background: var(--bg3) !important; border: 2px dashed var(--border2) !important;
-  border-radius: var(--radius) !important; transition: border-color .2s !important;
-}
-div[data-testid="stFileUploader"]:hover {
-  border-color: var(--accent) !important;
-}
-
-/* ── INPUTS ── */
-.stTextArea textarea, .stTextInput input {
-  background: var(--bg2) !important; border: 1px solid var(--border2) !important;
-  color: var(--text) !important; font-family: var(--mono) !important;
-  border-radius: var(--radius-sm) !important; font-size: .82rem !important;
-}
-.stTextArea textarea:focus, .stTextInput input:focus {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 3px rgba(79,110,247,.12) !important;
-}
-
-/* ── BUTTONS ── */
 .stButton > button {
-  background: var(--accent) !important; color: #fff !important;
-  border: none !important; border-radius: var(--radius-sm) !important;
-  font-family: var(--font) !important; font-size: .82rem !important;
-  font-weight: 600 !important; padding: .5rem 1.2rem !important;
-  box-shadow: 0 2px 6px rgba(79,110,247,.3) !important;
-  transition: all .15s !important;
-}
-.stButton > button:hover {
-  opacity: .88 !important;
-  box-shadow: 0 4px 12px rgba(79,110,247,.4) !important;
-}
-
-/* ── DOWNLOAD BUTTONS ── */
+    background:#0d1a30!important; color:#5b9cf6!important;
+    border:1px solid #2a4a7a!important; border-radius:7px!important;
+    font-family:'IBM Plex Mono',monospace!important; font-size:.74rem!important;
+    font-weight:600!important; letter-spacing:.05em!important; }
+.stButton > button:hover { background:#1a2a50!important; }
+div[data-testid="stFileUploader"] {
+    background:#0d1220!important; border:1px dashed #1e2a40!important; border-radius:8px!important; }
+.stTextArea textarea {
+    background:#0d1220!important; border:1px solid #1e2a40!important;
+    color:#d4d8e8!important; font-family:'IBM Plex Mono',monospace!important; border-radius:6px!important; }
+label { color:#8090b0!important; font-size:.78rem!important; }
+hr    { border-color:#1a1e2e!important; }
 .stDownloadButton > button {
-  background: var(--green-bg) !important; color: var(--green) !important;
-  border: 1px solid var(--green-b) !important;
-  border-radius: var(--radius-sm) !important;
-  font-family: var(--font) !important; font-size: .78rem !important;
-  font-weight: 600 !important;
-}
-
-/* ── CHECKBOXES ── */
-.tag-checkbox {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 12px; border-radius: 20px; cursor: pointer;
-  font-size: .78rem; font-family: var(--mono);
-  background: var(--bg3); color: var(--text2); border: 1px solid var(--border2);
-  margin: 3px 3px 3px 0; transition: all .15s;
-}
-.tag-checkbox.selected {
-  background: var(--accent-bg); color: var(--accent);
-  border-color: var(--accent-b); font-weight: 600;
-}
-
-/* ── SIDEBAR WIDGETS ── */
-.stRadio > div > label { color: var(--text) !important; font-size: .82rem !important; }
-.stSelectbox label, .stSlider label, .stCheckbox label {
-  color: var(--text2) !important; font-size: .78rem !important;
-}
-hr { border-color: var(--border) !important; margin: 12px 0 !important; }
-.stAlert { border-radius: var(--radius) !important; }
-
-/* ── IMAGE PANELS ── */
-.img-panel {
-  background: var(--bg2); border: 1px solid var(--border);
-  border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
-}
-.img-panel-header {
-  padding: 8px 14px; border-bottom: 1px solid var(--border);
-  background: var(--bg3);
-  font-family: var(--mono); font-size: .62rem; font-weight: 600;
-  color: var(--text3); text-transform: uppercase; letter-spacing: .1em;
-  display: flex; align-items: center; gap: 6px;
-}
-.img-panel-body { padding: 10px; }
-
-/* ── DIVIDER ── */
-.section-divider {
-  border: none; border-top: 1px solid var(--border); margin: 20px 0;
-}
-
-/* ── EXPORT ROW ── */
-.export-label {
-  font-family: var(--mono); font-size: .6rem; font-weight: 600;
-  letter-spacing: .14em; text-transform: uppercase; color: var(--text3);
-  margin-bottom: 8px;
-}
+    background:#0f2a1e!important; color:#3dd6a0!important;
+    border:1px solid #1a4a30!important;
+    font-family:'IBM Plex Mono',monospace!important; font-size:.7rem!important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -589,41 +374,36 @@ def show_results(scene_rgb, mask, bbox, conf_val, crop_padding,
 
     mask_px  = int(mask.sum())
     mask_pct = mask_px/(H*W)*100
-    _bw = f"{int(bbox[2]-bbox[0])}×{int(bbox[3]-bbox[1])}" if bbox is not None else "—"
-    st.markdown(f"""
-    <div style="display:flex;gap:12px;margin:12px 0 4px;">
-      <div class="metric-card" style="flex:1"><div class="val">{conf_val:.3f}</div><div class="lbl">Confidence</div></div>
-      <div class="metric-card" style="flex:1"><div class="val">{mask_px:,}</div><div class="lbl">Mask pixels</div></div>
-      <div class="metric-card" style="flex:1"><div class="val">{mask_pct:.1f}%</div><div class="lbl">Coverage</div></div>
-      <div class="metric-card" style="flex:1"><div class="val">{_bw}</div><div class="lbl">BBox size</div></div>
-    </div>
-    """, unsafe_allow_html=True)
+    mc = st.columns(4)
+    mc[0].markdown(f'<div class="metric-card"><div class="val">{conf_val:.3f}</div><div class="lbl">Confidence</div></div>',unsafe_allow_html=True)
+    mc[1].markdown(f'<div class="metric-card"><div class="val">{mask_px:,}</div><div class="lbl">Mask pixels</div></div>',unsafe_allow_html=True)
+    mc[2].markdown(f'<div class="metric-card"><div class="val">{mask_pct:.1f}%</div><div class="lbl">Coverage</div></div>',unsafe_allow_html=True)
+    if bbox is not None:
+        bw=int(bbox[2]-bbox[0]); bh=int(bbox[3]-bbox[1])
+        mc[3].markdown(f'<div class="metric-card"><div class="val">{bw}×{bh}</div><div class="lbl">BBox size</div></div>',unsafe_allow_html=True)
+    else:
+        mc[3].markdown('<div class="metric-card"><div class="val">—</div><div class="lbl">BBox size</div></div>',unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    p1, p2, p3 = st.columns(3)
+    p1,p2,p3 = st.columns(3)
     with p1:
-        st.markdown('<div class="img-panel-header">🎭 Mask overlay</div>', unsafe_allow_html=True)
+        st.markdown('<div class="panel-title">① Mask overlay</div>',unsafe_allow_html=True)
         st.image(overlay, use_container_width=True)
     with p2:
-        st.markdown('<div class="img-panel-header">⬛ Binary mask</div>', unsafe_allow_html=True)
+        st.markdown('<div class="panel-title">② Binary mask</div>',unsafe_allow_html=True)
         st.image(mask_vis, use_container_width=True)
     with p3:
-        st.markdown('<div class="img-panel-header">✂️ Cropped object → Any6D</div>', unsafe_allow_html=True)
+        st.markdown('<div class="panel-title">③ Crop → Any6D</div>',unsafe_allow_html=True)
         if crop_prev is not None:
             st.image(crop_prev, use_container_width=True)
             if crop_bbox:
-                cx1, cy1, cx2, cy2 = crop_bbox
-                st.markdown(
-                    f'<div class="crop-info">' +
-                    f'<b>origin</b> ({cx1}, {cy1})<br>' +
-                    f'<b>size</b>&nbsp;&nbsp; {cx2-cx1} × {cy2-cy1} px<br>' +
-                    f'<b>pad</b>&nbsp;&nbsp;&nbsp; {crop_padding} px' +
-                    f'</div>', unsafe_allow_html=True)
+                cx1,cy1,cx2,cy2 = crop_bbox
+                st.markdown(f'<div class="crop-info">origin&nbsp; ({cx1},{cy1})<br>size&nbsp;&nbsp;&nbsp; {cx2-cx1}×{cy2-cy1} px<br>pad&nbsp;&nbsp;&nbsp;&nbsp; {crop_padding} px</div>',unsafe_allow_html=True)
         else:
-            st.warning("Crop failed — mask may be empty or at image edge.")
+            st.warning("Crop failed.")
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<div class="export-label">⬇ Export for Any6D</div>', unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown('<div class="section-label">Export for Any6D</div>',unsafe_allow_html=True)
     mask_pil = Image.fromarray((mask*255).astype(np.uint8),"L")
     meta = {"mode":mode_label,"conf":round(float(conf_val),4),
             "bbox_xyxy":[int(v) for v in bbox] if bbox is not None else None,
@@ -641,138 +421,62 @@ def show_results(scene_rgb, mask, bbox, conf_val, crop_padding,
 # SIDEBAR
 # ════════════════════════════════════════════════════════════════════════════════
 
-# ── Dark/light mode ─────────────────────────────────────────────────────────
-if "dark_mode" not in st.session_state:
-    st.session_state["dark_mode"] = True
-
-def _inject_theme():
-    if st.session_state.get("dark_mode", True):
-        st.markdown("""<style>
-        .stApp{background:#0c0e14!important;color:#e8ecf8!important}
-        section[data-testid="stSidebar"]{background:#12151f!important;border-right:1px solid #1e2235!important}
-        div[data-testid="stFileUploader"]{background:#181c28!important;border-color:#252a3f!important}
-        .stTextArea textarea{background:#12151f!important;border-color:#252a3f!important;color:#e8ecf8!important}
-        label{color:#8892b0!important}
-        hr{border-color:#1e2235!important}
-        .metric-card{background:#12151f!important;border-color:#1e2235!important}
-        .metric-card .val{color:#6281f8!important}
-        .metric-card .lbl{color:#4a5070!important}
-        .det-row{background:#12151f!important;border-color:#1e2235!important}
-        .det-label{color:#e8ecf8!important}
-        .det-conf{color:#6281f8!important}
-        .pipe-banner{background:#12151f!important;border-color:#1e2235!important}
-        .pipe-step.active{background:#0d1630!important;color:#6281f8!important;border-color:#1e2e5a!important}
-        .pipe-step.pending{background:#181c28!important;color:#4a5070!important;border-color:#1e2235!important}
-        .card{background:#12151f!important;border-color:#1e2235!important}
-        .section-label{color:#4a5070!important;border-color:#1e2235!important}
-        .stButton>button{background:#4f6ef7!important}
-        .stDownloadButton>button{background:#052e1a!important;color:#34d399!important;border-color:#0a4a2a!important}
-        .crop-info{background:#052e1a!important;border-color:#0a4a2a!important;color:#34d399!important}
-        </style>""", unsafe_allow_html=True)
-    else:
-        st.markdown("""<style>
-        .stApp{background:#f8f9fc!important;color:#111827!important}
-        section[data-testid="stSidebar"]{background:#ffffff!important;border-right:1px solid #e2e6f0!important}
-        div[data-testid="stFileUploader"]{background:#f0f2f8!important;border-color:#d0d6e8!important}
-        .stTextArea textarea{background:#ffffff!important;border-color:#d0d6e8!important;color:#111827!important}
-        label{color:#4b5563!important}
-        hr{border-color:#e2e6f0!important}
-        .metric-card{background:#ffffff!important;border-color:#e2e6f0!important}
-        .metric-card .val{color:#4f6ef7!important}
-        .metric-card .lbl{color:#9ca3af!important}
-        .det-row{background:#ffffff!important;border-color:#e2e6f0!important}
-        .det-label{color:#111827!important}
-        .det-conf{color:#4f6ef7!important}
-        .pipe-banner{background:#ffffff!important;border-color:#e2e6f0!important}
-        .pipe-step.active{background:#eef1fe!important;color:#4f6ef7!important;border-color:#c7d0fc!important}
-        .pipe-step.pending{background:#f0f2f8!important;color:#9ca3af!important;border-color:#e2e6f0!important}
-        .card{background:#ffffff!important;border-color:#e2e6f0!important}
-        .section-label{color:#9ca3af!important;border-color:#e2e6f0!important}
-        .stButton>button{background:#4f6ef7!important}
-        .stDownloadButton>button{background:#ecfdf5!important;color:#059669!important;border-color:#a7f3d0!important}
-        .crop-info{background:#ecfdf5!important;border-color:#a7f3d0!important;color:#059669!important}
-        </style>""", unsafe_allow_html=True)
-
-_inject_theme()
-
 with st.sidebar:
-    st.markdown("""
-    <div class="yoloe-logo">
-      <div class="yoloe-logo-icon">✂️</div>
-      <div>
-        <div class="yoloe-logo-text">YOLOE Studio</div>
-        <div class="yoloe-logo-sub">Block 1 · Mask &amp; Crop</div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div style="font-family:\'IBM Plex Mono\',monospace;font-size:1.05rem;font-weight:600;color:#5b9cf6;">YOLOE Studio</div>',unsafe_allow_html=True)
+    st.markdown('<div style="font-size:.67rem;color:#4a5070;margin:2px 0 18px;font-family:\'IBM Plex Mono\',monospace;letter-spacing:.1em;">BLOCK 1 · MASK &amp; CROP</div>',unsafe_allow_html=True)
 
-    st.toggle("🌙  Dark mode", value=st.session_state["dark_mode"], key="dark_mode")
-    _inject_theme()
+    st.markdown('<div class="section-label">Prompt mode</div>',unsafe_allow_html=True)
+    mode = st.radio("", [" Text Prompt", " Visual Prompt", " Free-Prompt"], label_visibility="collapsed")
 
-    st.markdown('<hr>', unsafe_allow_html=True)
-    st.markdown('<div class="section-label">Prompt mode</div>', unsafe_allow_html=True)
-    mode = st.radio("", [" Text Prompt", " Visual Prompt", " Free-Prompt"],
-                    label_visibility="collapsed")
+    st.markdown("---")
+    st.markdown('<div class="section-label">Models</div>',unsafe_allow_html=True)
+    model_choice = st.selectbox("Seg model", ["yoloe-26l-seg.pt","yoloe-11l-seg.pt","yoloe-11m-seg.pt","yoloe-11s-seg.pt"])
+    pf_choice    = st.selectbox("Free-prompt model", ["yoloe-26l-seg-pf.pt","yoloe-11l-seg-pf.pt","yoloe-11s-seg-pf.pt"])
 
-    st.markdown('<hr>', unsafe_allow_html=True)
-    st.markdown('<div class="section-label">Models</div>', unsafe_allow_html=True)
-    model_choice = st.selectbox("Seg model",
-        ["yoloe-26l-seg.pt","yoloe-11l-seg.pt","yoloe-11m-seg.pt","yoloe-11s-seg.pt"])
-    pf_choice = st.selectbox("Free-prompt model",
-        ["yoloe-26l-seg-pf.pt","yoloe-11l-seg-pf.pt","yoloe-11s-seg-pf.pt"])
+    st.markdown("---")
+    st.markdown('<div class="section-label">Detection</div>',unsafe_allow_html=True)
+    conf_thresh  = st.slider("Confidence", 0.05, 0.95, 0.25, 0.05)
 
-    st.markdown('<hr>', unsafe_allow_html=True)
-    st.markdown('<div class="section-label">Detection</div>', unsafe_allow_html=True)
-    conf_thresh  = st.slider("Confidence threshold", 0.05, 0.95, 0.25, 0.05)
-
-    st.markdown('<div class="section-label">Mask refinement</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">Mask refinement</div>',unsafe_allow_html=True)
     use_largest  = st.checkbox("Largest component only", value=True)
-    _c1, _c2 = st.columns(2)
-    erode_iters  = _c1.slider("Erode",  0, 5, 0)
-    dilate_iters = _c2.slider("Dilate", 0, 5, 0)
+    erode_iters  = st.slider("Erode",  0, 5, 0)
+    dilate_iters = st.slider("Dilate", 0, 5, 0)
 
-    st.markdown('<div class="section-label">Crop</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">Crop</div>',unsafe_allow_html=True)
     crop_padding = st.slider("Padding (px)", 0, 80, 12)
 
-    st.markdown('<hr>', unsafe_allow_html=True)
-    st.markdown('<div class="section-label">Environment</div>', unsafe_allow_html=True)
-    _h_ok = (APP_DIR/"helpers.py").exists()
-    st.markdown(f'<span class="status-{"ok" if _h_ok else "err"}">{"✓ helpers.py" if _h_ok else "✗ helpers.py missing"}</span>', unsafe_allow_html=True)
+    st.markdown("---")
+    # Status
+    h_ok = (APP_DIR/"helpers.py").exists()
+    st.caption(f"{'✅' if h_ok else '⚠️'} helpers.py {'found' if h_ok else 'missing'}")
     try:
-        import clip
-        st.markdown('<span class="status-ok">✓ CLIP</span>', unsafe_allow_html=True)
+        import clip; st.caption("✅ clip installed")
     except ImportError:
-        st.markdown('<span class="status-err">✗ CLIP missing</span>', unsafe_allow_html=True)
+        st.caption("❌ clip missing — run: pip install git+https://github.com/ultralytics/CLIP.git")
     try:
-        import mobileclip
-        st.markdown('<span class="status-ok">✓ MobileCLIP</span>', unsafe_allow_html=True)
+        import mobileclip; st.caption("✅ mobileclip installed")
     except ImportError:
-        st.markdown('<span class="status-warn">⚠ MobileCLIP</span>', unsafe_allow_html=True)
-    st.caption(f"📁 {APP_DIR.name}/")
+        st.caption("❌ mobileclip missing — run: pip install git+https://github.com/ultralytics/mobileclip.git")
+    st.caption(f"📁 {APP_DIR}")
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# PIPELINE BANNER
+# ════════════════════════════════════════════════════════════════════════════════
+
 st.markdown("""
 <div class="pipe-banner">
-  <div class="pipe-step active">① Image</div>
+  <div class="pipe-step active">① Scene image</div>
   <div class="pipe-arrow">→</div>
   <div class="pipe-step active">② Prompt</div>
   <div class="pipe-arrow">→</div>
-  <div class="pipe-step active">③ YOLOE Mask</div>
+  <div class="pipe-step active">③ YOLOE mask</div>
   <div class="pipe-arrow">→</div>
   <div class="pipe-step active">④ Crop</div>
   <div class="pipe-arrow">→</div>
-  <div class="pipe-step pending">⑤ Any6D Pose ·  next</div>
+  <div class="pipe-step pending">⑤ Any6D pose</div>
 </div>
 """, unsafe_allow_html=True)
-
-# Page heading changes per mode
-if " Text Prompt" in mode:
-    st.markdown('<div class="page-title">Text Prompt Detection</div>', unsafe_allow_html=True)
-    st.markdown('<div class="page-subtitle">Enter class names → select tags → detect &amp; crop all matched objects</div>', unsafe_allow_html=True)
-elif " Visual Prompt" in mode:
-    st.markdown('<div class="page-title">Visual Prompt Detection</div>', unsafe_allow_html=True)
-    st.markdown('<div class="page-subtitle">Draw a bounding box on your reference image → find &amp; crop the same object in the scene</div>', unsafe_allow_html=True)
-else:
-    st.markdown('<div class="page-title">Free Prompt Detection</div>', unsafe_allow_html=True)
-    st.markdown('<div class="page-subtitle">No prompt needed — detect all objects, pick which ones to crop</div>', unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -835,52 +539,21 @@ if " Text Prompt" in mode:
             st.error("Select at least one tag."); st.stop()
 
         scene_path = None
-        scene_path_reuse = None
         try:
             scene_path = save_upload(scene_up)
-            scene_path_reuse = scene_path  # keep ref for per-class re-runs below
             scene_rgb  = read_rgb(scene_path)
             model      = load_model(model_choice)
-            with st.spinner(f"Detecting {len(selected)} class(es)…"):
-                # Initial run to validate — per-class runs happen in show block
+            with st.spinner(f"Detecting: {', '.join(selected)} …"):
                 bbox, mask, conf_val, _ = run_text(model, scene_path, scene_rgb, selected, conf_thresh)
         except Exception as e:
             st.error(f"Detection failed: {e}"); traceback.print_exc(file=sys.stderr); st.stop()
         finally:
-            pass  # unlink after per-class crops below
-        try:
-            pass  # file still needed for per-class runs
-        finally:
             safe_unlink(scene_path)
 
         st.markdown("---")
-        # Run detection for EACH selected class and show individual crop
-        # This respects the requirement: every selected tag gets detected & cropped
-        _all_text_results = {}
-        for _cls in selected:
-            try:
-                _bx, _mk, _cv, _ = run_text(model, scene_path_reuse, scene_rgb, [_cls], conf_thresh)
-                _all_text_results[_cls] = (_bx, _mk, _cv)
-            except Exception:
-                _all_text_results[_cls] = (None, None, 0.0)
-
-        if len(selected) == 1:
-            _cls = selected[0]
-            _bx, _mk, _cv = _all_text_results[_cls]
-            show_results(scene_rgb, _mk, _bx, _cv,
-                         crop_padding, use_largest, erode_iters, dilate_iters,
-                         mode_label=f"text:{_cls}", key_suffix=f"t0")
-        else:
-            _tabs = st.tabs([f"✂ {c}" for c in selected])
-            for _ti, _cls in enumerate(selected):
-                with _tabs[_ti]:
-                    _bx, _mk, _cv = _all_text_results[_cls]
-                    if _mk is None or not np.asarray(_mk).any():
-                        st.warning(f"No detection for '{_cls}' — try a lower confidence threshold.")
-                    else:
-                        show_results(scene_rgb, _mk, _bx, _cv,
-                                     crop_padding, use_largest, erode_iters, dilate_iters,
-                                     mode_label=f"text:{_cls}", key_suffix=f"t{_ti}")
+        show_results(scene_rgb, mask, bbox, conf_val,
+                     crop_padding, use_largest, erode_iters, dilate_iters,
+                     mode_label=f"text:{','.join(selected)}", key_suffix="t")
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -1093,11 +766,10 @@ else:
         col_info2, col_btn = st.columns([4, 1])
         mask_px = int(d["mask"].sum())
         col_info2.markdown(
-            f'<div class="det-row">' +
-            f'<span class="det-badge">#{i}</span>' +
-            f'<span class="det-label">{d["label"]}</span>' +
-            f'<span class="det-conf">{d["conf"]:.3f}</span>' +
-            f'<span class="det-mask">{mask_px:,} px</span>' +
+            f'<div class="det-row">'
+            f'<div class="det-label">[{i}] {d["label"]}</div>'
+            f'<div class="det-conf">conf {d["conf"]:.3f}</div>'
+            f'<div class="det-mask">{mask_px:,} px</div>'
             f'</div>',
             unsafe_allow_html=True
         )
