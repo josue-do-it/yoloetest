@@ -580,54 +580,73 @@ elif "🖼️" in mode:
             orig_W, orig_H = anchor_pil.size
 
             # Try drawable canvas
+            # Catches both ImportError and AttributeError:
+            # AttributeError happens when st_canvas(background_image=PIL) breaks
+            # because Streamlit changed its internal image_to_url API.
+            # Workaround: resize the PIL image ourselves and pass it directly —
+            # st_canvas accepts a PIL image that matches the canvas dimensions exactly.
+            _canvas_ok = False
             try:
                 from streamlit_drawable_canvas import st_canvas
-
-                # Scale to fit display (max 480 wide)
-                disp_W = min(480, orig_W)
-                scale  = disp_W / orig_W
-                disp_H = int(orig_H * scale)
-
-                st.caption("Draw a rectangle around the object, then click Run.")
-                canvas_result = st_canvas(
-                    fill_color  = "rgba(91,156,246,0.15)",
-                    stroke_width= 2,
-                    stroke_color= "#5b9cf6",
-                    background_image = anchor_pil,
-                    update_streamlit = True,
-                    height = disp_H,
-                    width  = disp_W,
-                    drawing_mode = "rect",
-                    key = "canvas_anchor",
-                )
-
-                # Extract the last drawn rectangle in original image coords
-                if (canvas_result.json_data is not None
-                        and canvas_result.json_data.get("objects")):
-                    objs = canvas_result.json_data["objects"]
-                    rects = [o for o in objs if o.get("type") == "rect"]
-                    if rects:
-                        r = rects[-1]
-                        # canvas gives left,top,width,height in display coords
-                        # scaleX/scaleY are applied when user resizes a rect handle
-                        lx = r["left"];  ly = r["top"]
-                        rw = r["width"]  * r.get("scaleX", 1)
-                        rh = r["height"] * r.get("scaleY", 1)
-                        # back to original image coords
-                        x1 = int(lx / scale);       y1 = int(ly / scale)
-                        x2 = int((lx+rw) / scale);  y2 = int((ly+rh) / scale)
-                        x1,x2 = sorted([x1,x2]); y1,y2 = sorted([y1,y2])
-                        x1=max(0,x1); y1=max(0,y1)
-                        x2=min(orig_W,x2); y2=min(orig_H,y2)
-                        if x2>x1 and y2>y1:
-                            drawn_bbox = [x1,y1,x2,y2]
-                            st.caption(f"✅ Box (original coords): [{x1}, {y1}, {x2}, {y2}]")
-                        else:
-                            st.caption("Draw a valid rectangle (width & height > 0)")
-
+                _canvas_ok = True
             except ImportError:
-                # Fallback: manual number inputs
-                st.warning("Install `streamlit-drawable-canvas` for draw-to-bbox. Using manual input:")
+                pass
+
+            if _canvas_ok:
+                try:
+                    # Scale to fit display (max 520 wide)
+                    disp_W = min(520, orig_W)
+                    scale  = disp_W / orig_W
+                    disp_H = int(orig_H * scale)
+
+                    # Resize PIL image to exactly match canvas dimensions
+                    # This avoids the internal image_to_url rescaling that broke
+                    anchor_resized = anchor_pil.resize((disp_W, disp_H), Image.LANCZOS)
+
+                    st.caption("✏️ Draw a rectangle around the object, then click Run.")
+                    canvas_result = st_canvas(
+                        fill_color   = "rgba(91,156,246,0.15)",
+                        stroke_width = 2,
+                        stroke_color = "#5b9cf6",
+                        background_image = anchor_resized,
+                        update_streamlit = True,
+                        height       = disp_H,
+                        width        = disp_W,
+                        drawing_mode = "rect",
+                        key          = "canvas_anchor",
+                    )
+
+                    # Extract last drawn rectangle → map back to original coords
+                    if (canvas_result.json_data is not None
+                            and canvas_result.json_data.get("objects")):
+                        objs  = canvas_result.json_data["objects"]
+                        rects = [o for o in objs if o.get("type") == "rect"]
+                        if rects:
+                            r  = rects[-1]
+                            lx = r["left"]
+                            ly = r["top"]
+                            # scaleX/scaleY applied when user drags resize handles
+                            rw = r["width"]  * r.get("scaleX", 1)
+                            rh = r["height"] * r.get("scaleY", 1)
+                            # Back to original image pixel coords
+                            x1 = int(lx / scale);      y1 = int(ly / scale)
+                            x2 = int((lx+rw) / scale); y2 = int((ly+rh) / scale)
+                            x1, x2 = sorted([x1, x2]); y1, y2 = sorted([y1, y2])
+                            x1 = max(0, x1); y1 = max(0, y1)
+                            x2 = min(orig_W, x2); y2 = min(orig_H, y2)
+                            if x2 > x1 and y2 > y1:
+                                drawn_bbox = [x1, y1, x2, y2]
+                                st.caption(f"✅ Box in original coords: [{x1}, {y1}, {x2}, {y2}]")
+                            else:
+                                st.caption("Draw a rectangle with non-zero width and height.")
+
+                except (AttributeError, Exception) as _canvas_err:
+                    # st_canvas broke (internal Streamlit API change) → fall through
+                    st.warning(f"Canvas unavailable ({type(_canvas_err).__name__}) — using manual input below.")
+                    _canvas_ok = False
+
+            if not _canvas_ok:
+                # Manual number input fallback — always works
                 anchor_up.seek(0); st.image(anchor_up, use_container_width=True)
                 bc = st.columns(4)
                 ax1 = bc[0].number_input("x1", 0, orig_W, 0,      key="vx1")
