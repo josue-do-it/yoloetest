@@ -485,8 +485,8 @@ st.markdown("""
 # Selected tags are sent as text_prompts to YOLOE
 # ════════════════════════════════════════════════════════════════════════════════
 
-if "📝" in mode:
-    st.markdown('<span class="mode-pill pill-text">Text Prompt</span>', unsafe_allow_html=True)
+if "-" in mode:
+    st.markdown('<span class="mode-pill pill-text"> Text Prompt</span>', unsafe_allow_html=True)
 
     col_img, col_cfg = st.columns([1.5, 1])
 
@@ -561,8 +561,8 @@ if "📝" in mode:
 # Drawable canvas on anchor → real pixel coords → model
 # ════════════════════════════════════════════════════════════════════════════════
 
-elif "🖼️" in mode:
-    st.markdown('<span class="mode-pill pill-visual">Visual Prompt</span>', unsafe_allow_html=True)
+elif "-" in mode:
+    st.markdown('<span class="mode-pill pill-visual"> Visual Prompt</span>', unsafe_allow_html=True)
 
     col_anc, col_scn = st.columns(2)
     anchor_up = scene_up = None
